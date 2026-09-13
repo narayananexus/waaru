@@ -8,9 +8,14 @@ coverage/
 .DS_Store
 .worktrees/
 
-# Local maintainer material. Never include these paths in the public repository.
+# Local maintainer material. Only the reviewed automation allowlist may be public.
 AGENTS.md
-.github/
+.github/*
+!.github/dependabot.yml
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/ci.yml
+!.github/workflows/publish.yml
 docs/
 PUBLISHING.md
 .private/
