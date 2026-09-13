@@ -1,11 +1,12 @@
 # Changelog
 
-## 1.0.0-beta.3 — Unreleased
+## 1.0.0-beta.3 — 2026-09-13
 
 - Prepare a sanitized public-source repository with official repository and issue links.
 - Exclude maintainer-only publishing instructions from future npm tarballs.
 - Add a public security-reporting policy and remove the staging hostname from the public environment example.
 - Keep release errors self-contained without references to private maintainer files.
+- Add pinned, least-privilege GitHub Actions for multi-version CI and tokenless npm publishing with provenance.
 
 ## 1.0.0-beta.2 — 2026-09-12
 

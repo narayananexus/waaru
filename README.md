@@ -1,5 +1,7 @@
 # Waaru SDK
 
+[![CI](https://github.com/narayananexus/waaru/actions/workflows/ci.yml/badge.svg)](https://github.com/narayananexus/waaru/actions/workflows/ci.yml)
+
 [Website](https://www.waaru.app) · [Documentation](https://www.waaru.app/docs) · [npm package](https://www.npmjs.com/package/@waaru/sdk) · [Source](https://github.com/narayananexus/waaru)
 
 Send WhatsApp text messages and approved templates from your Node.js server. Includes TypeScript types. Requires Node.js 22.14 or later.
@@ -10,7 +12,7 @@ Send WhatsApp text messages and approved templates from your Node.js server. Inc
 npm install @waaru/sdk
 ```
 
-This is a beta release. The latest published version is `1.0.0-beta.2`; the `main` branch prepares the next beta. Check `npm view @waaru/sdk version` before installing. HTTP error `outcomeUnknown` and the recipe examples below require `1.0.0-beta.2` or later.
+This is a beta release. Check `npm view @waaru/sdk version` before installing. HTTP error `outcomeUnknown` and the recipe examples below require `1.0.0-beta.2` or later.
 
 ## 2. Add your API key
 
@@ -106,6 +108,10 @@ Gateway errors, HTTP 408, all HTTP 5xx responses, and malformed error envelopes 
 Optional constructor settings: `apiKey`, `timeoutMs` (default 30 seconds), trusted `baseUrl`, and `fetch`. Per-call options: `{ signal, timeoutMs, requestId }` as the second argument. `.env` is loaded by Node's `--env-file` flag or your framework; the SDK reads the resulting environment variables.
 
 Phase 1 includes text and template sending only. No database, build step, or runtime dependencies are needed. For repository development: `npm ci && npm run verify`.
+
+## Package trust
+
+Every pull request is tested on the supported Node.js versions and against the packed npm artifact. Releases are published from an explicit GitHub Release through npm Trusted Publishing, without a reusable npm write token. npm provenance links published package bytes to the public source and release workflow.
 
 ## Contributing
 
