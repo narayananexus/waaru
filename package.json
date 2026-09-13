@@ -26,6 +26,6 @@
     "pack:release": "npm run verify && npm pack",
     "publish:check": "npm publish --dry-run --access public --tag beta"
   },
-  "devDependencies": { "typescript": "5.9.3" },
+  "devDependencies": { "typescript": "7.0.2" },
   "license": "MIT"
 }
