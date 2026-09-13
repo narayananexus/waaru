@@ -1,0 +1,31 @@
+{
+  "name": "@waaru/sdk",
+  "version": "1.0.0-beta.3",
+  "description": "Send WhatsApp text messages and approved templates through Waaru from Node.js",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": { ".": { "types": "./src/index.d.ts", "default": "./src/index.js" } },
+  "files": ["src", "examples", "CHANGELOG.md", "SECURITY.md", "TROUBLESHOOTING.md"],
+  "homepage": "https://www.waaru.app/docs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/narayananexus/waaru.git"
+  },
+  "bugs": {
+    "url": "https://github.com/narayananexus/waaru/issues"
+  },
+  "engines": { "node": ">=22.14.0" },
+  "keywords": ["waaru", "whatsapp", "sdk", "messaging", "templates", "typescript"],
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/", "tag": "beta" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "verify": "npm test",
+    "release:evidence": "node scripts/release-evidence.mjs",
+    "prepublishOnly": "npm run verify && node scripts/check-release.mjs",
+    "pack:release": "npm run verify && npm pack",
+    "publish:check": "npm publish --dry-run --access public --tag beta"
+  },
+  "devDependencies": { "typescript": "5.9.3" },
+  "license": "MIT"
+}
