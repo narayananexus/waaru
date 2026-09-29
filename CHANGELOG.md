@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add typed namespaces for all 26 operations in the reviewed Developer API expansion contract.
+- Add nine raw message variants, persistent send idempotency keys, message status reads, pagination, streaming media, workspace contacts/labels/segments, template discovery, activity reports and revisioned webhook management.
+- Add raw-byte webhook verification, durable receiver guidance, pinned contract coverage and explicit API/staging release blockers.
+- Preserve the existing text/template helpers, Node.js floor, safe errors and zero automatic retries.
+
+This section describes source changes only. It is not an npm release or proof of API deployment.
+
 ## 1.0.0-beta.3 — 2026-09-13
 
 - Prepare a sanitized public-source repository with official repository and issue links.

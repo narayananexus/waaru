@@ -1,12 +1,12 @@
 {
   "name": "@waaru/sdk",
   "version": "1.0.0-beta.3",
-  "description": "Send WhatsApp text messages and approved templates through Waaru from Node.js",
+  "description": "Server SDK for messaging and scoped Developer API resources through Waaru",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "exports": { ".": { "types": "./src/index.d.ts", "default": "./src/index.js" } },
-  "files": ["src", "examples", "CHANGELOG.md", "SECURITY.md", "TROUBLESHOOTING.md"],
+  "files": ["src", "examples", "docs/api-coverage.md", "docs/recipes", "CHANGELOG.md", "SECURITY.md", "TROUBLESHOOTING.md"],
   "homepage": "https://www.waaru.app/docs",
   "repository": {
     "type": "git",
@@ -20,7 +20,8 @@
   "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/", "tag": "beta" },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "verify": "npm test",
+    "typecheck": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext test/types.test.ts",
+    "verify": "npm test && npm run typecheck",
     "release:evidence": "node scripts/release-evidence.mjs",
     "prepublishOnly": "npm run verify && node scripts/check-release.mjs",
     "pack:release": "npm run verify && npm pack",

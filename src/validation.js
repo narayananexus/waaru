@@ -32,7 +32,31 @@ export function timeout(value) {
   );
   return value;
 }
-function link(value) {
+export function requestId(value) {
+  check(
+    typeof value === "string" &&
+      /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value),
+    "Invalid request ID.",
+  );
+  return value;
+}
+export function idempotencyKey(value) {
+  check(
+    typeof value === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(value),
+    "Invalid idempotency key.",
+  );
+  return value;
+}
+export function resourceId(value, label = "Resource ID") {
+  string(value, 512, label);
+  check(
+    !value.split(/[\\/]/).some((part) => part === "." || part === "..") &&
+      !/%2e/i.test(value),
+    `${label} is invalid.`,
+  );
+  return value;
+}
+export function mediaLink(value) {
   string(value, 2048, "Media link");
   let url;
   try {
@@ -130,7 +154,7 @@ export function template(input) {
           p.type === "document" ? ["link", "filename"] : ["link"],
           "Media parameter",
         );
-        link(p[p.type].link);
+        mediaLink(p[p.type].link);
         if (p.type === "document" && p.document.filename !== undefined)
           string(p.document.filename, 240, "Filename");
       } else check(false, "Unsupported template parameter type.");

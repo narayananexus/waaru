@@ -4,7 +4,9 @@
 
 [Website](https://www.waaru.app) · [Documentation](https://www.waaru.app/docs) · [npm package](https://www.npmjs.com/package/@waaru/sdk) · [Source](https://github.com/narayananexus/waaru)
 
-Send WhatsApp text messages and approved templates from your Node.js server. Includes TypeScript types. Requires Node.js 22.14 or later.
+Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
+
+> **Release status:** npm `latest` remains `1.0.0-beta.2`, which supports text and template sending. The broader 26-operation surface documented below is an unreleased source candidate. Backend verification and integration checks are required before publication; see [API coverage](docs/api-coverage.md).
 
 ## 1. Install
 
@@ -35,10 +37,12 @@ import { Waaru } from '@waaru/sdk';
 
 const waaru = new Waaru(); // reads WAARU_API_KEY
 
-const result = await waaru.messages.sendText({
-  to: '+14155552671',
-  text: 'Your order is ready.',
-});
+// Persist this key with the logical send before the first attempt.
+const idempotencyKey = 'order:ORDER-123:ready';
+const result = await waaru.messages.sendText(
+  { to: '+14155552671', text: 'Your order is ready.' },
+  { idempotencyKey },
+);
 
 console.log(result.messageId, result.status);
 ```
@@ -101,13 +105,24 @@ try {
 }
 ```
 
-The SDK never retries sends automatically. A timeout or lost response can leave the outcome unknown. Request IDs do not prevent duplicate sends.
+The SDK never retries any request automatically. A timeout or lost response can leave a write outcome unknown. Request IDs do not prevent duplicate sends. For a deliberate send retry, reuse the identical body and the persisted `idempotencyKey`; never generate a replacement key to bypass a conflict.
 
 Gateway errors, HTTP 408, all HTTP 5xx responses, and malformed error envelopes are conservatively marked `outcomeUnknown: true`. A recognized JSON 4xx response (except 408) has `false`; this is not permission to retry unchanged. `Retry-After` is guidance for pacing, not an automatic retry instruction. See [troubleshooting](TROUBLESHOOTING.md).
 
-Optional constructor settings: `apiKey`, `timeoutMs` (default 30 seconds), trusted `baseUrl`, and `fetch`. Per-call options: `{ signal, timeoutMs, requestId }` as the second argument. `.env` is loaded by Node's `--env-file` flag or your framework; the SDK reads the resulting environment variables.
+Optional constructor settings: `apiKey`, `timeoutMs` (default 30 seconds), trusted `baseUrl`, and `fetch`. Per-call options are `{ signal, timeoutMs, requestId }`; send methods additionally accept `idempotencyKey`. `.env` is loaded by Node's `--env-file` flag or your framework; the SDK reads the resulting environment variables.
 
-Phase 1 includes text and template sending only. No database, build step, or runtime dependencies are needed. For repository development: `npm ci && npm run verify`.
+## Expansion candidate
+
+The source candidate adds:
+
+- `messages.send/get`, `conversations.list/messages`, and `media.download`;
+- `contacts`, `labels`, and static `segments` namespaces with workspace-wide scoped access;
+- `templates.list/get` and `reports.activity`;
+- revisioned `webhooks` management and local `verifyWebhook`.
+
+See the complete [method/scope matrix](docs/api-coverage.md), [contact sync recipe](docs/recipes/contact-sync.md), and [durable webhook receiver](docs/recipes/webhook-receiver.md). Media downloads return a streaming `Response`; consume or cancel the body. Contact projections are not lossless exports. Webhook secrets are returned only on creation/rotation and cannot be recovered automatically.
+
+No database, build step, or runtime dependencies are needed. For repository development: `npm ci && npm run verify`.
 
 ## Package trust
 
