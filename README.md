@@ -111,7 +111,11 @@ Phase 1 includes text and template sending only. No database, build step, or run
 
 ## Package trust
 
-Every pull request is tested on the supported Node.js versions and against the packed npm artifact. Releases are published from an explicit GitHub Release through npm Trusted Publishing, without a reusable npm write token. npm provenance links published package bytes to the public source and release workflow.
+Every pull request is tested on the supported Node.js versions and against the packed npm artifact. After CI passes on `main`, new versions marked ready in `.github/release-policy.json` publish automatically through npm Trusted Publishing. Existing versions are skipped. Prereleases use the `beta` tag; stable releases use `latest`. npm provenance links published package bytes to the public source and workflow.
+
+To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version with `ready: true` in `.github/release-policy.json` after compatibility checks. Merge that release PR after CI passes. An explicit GitHub Release with a matching `v<version>` tag is also supported. No reusable npm write token is needed.
+
+The npm trusted publisher must specify organization `narayananexus`, repository `waaru`, workflow `publish.yml`, environment `npm`, and allow direct publishing. The current source candidate is marked `ready: false`, so enabling this workflow will not publish it prematurely.
 
 ## Contributing
 

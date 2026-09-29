@@ -37,11 +37,17 @@ test('workflows use immutable official actions and least privilege', () => {
   assert.match(publish, /permissions:\n\s+contents: read\n\s+id-token: write/);
 });
 
-test('publishing is release-only, version-bound, tokenless, and provenance-enabled', async () => {
+test('publishing follows successful main CI, release approval, and provenance checks', async () => {
   const workflow = read('.github/workflows/publish.yml');
 
   assert.match(workflow, /release:\n\s+types: \[published\]/);
-  assert.doesNotMatch(workflow, /workflow_dispatch|push:/);
+  assert.match(workflow, /workflow_run:/);
+  assert.match(workflow, /workflows: \[CI\]/);
+  assert.match(workflow, /workflow_run\.conclusion == 'success'/);
+  assert.match(workflow, /workflow_run\.event == 'push'/);
+  assert.match(workflow, /workflow_run\.head_branch == 'main'/);
+  assert.match(workflow, /head_repository\.full_name == github\.repository/);
+  assert.match(workflow, /scripts\/publish-candidate\.mjs/);
   assert.match(workflow, /environment: npm/);
   assert.match(workflow, /npm run release:evidence/);
   assert.match(workflow, /npm publish --access public --provenance/);
@@ -63,6 +69,7 @@ test('only reviewed public automation is unignored', () => {
   const ignore = read('.gitignore');
   for (const path of [
     '.github/dependabot.yml',
+    '.github/release-policy.json',
     '.github/workflows/ci.yml',
     '.github/workflows/publish.yml',
   ]) {
