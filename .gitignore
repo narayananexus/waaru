@@ -13,6 +13,7 @@ coverage/
 AGENTS.md
 .github/*
 !.github/dependabot.yml
+!.github/release-policy.json
 !.github/workflows/
 .github/workflows/*
 !.github/workflows/ci.yml

@@ -1,53 +1,106 @@
 name: Publish
 
 on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
   release:
     types: [published]
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
-  group: npm-publish-${{ github.event.release.tag_name }}
+  group: npm-publish
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish to npm
-    if: github.repository == 'narayananexus/waaru'
+  candidate:
+    name: Check release eligibility
+    if: >-
+      github.repository == 'narayananexus/waaru' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
+       github.event_name == 'release')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: npm
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.candidate.outputs.publish }}
+      tag: ${{ steps.candidate.outputs.tag }}
+      sha: ${{ steps.source.outputs.sha }}
     steps:
-      - name: Check out the release tag
+      - name: Check out candidate source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.workflow_run.head_sha || github.event.release.tag_name }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Require the current main commit
+        id: source
+        run: |
+          test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/origin/main)"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24.x
-          registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: Require a release from main
-        run: git merge-base --is-ancestor HEAD refs/remotes/origin/main
+      - name: Check version approval and registry
+        id: candidate
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node scripts/publish-candidate.mjs
+
+  publish:
+    name: Publish to npm
+    needs: candidate
+    if: needs.candidate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out approved source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the current main commit
+        run: test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/origin/main)"
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24.x
+          package-manager-cache: false
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Audit dependencies
         run: npm audit --audit-level=high
       - name: Verify SDK and package bytes
-        run: npm run release:evidence
-      - name: Select npm distribution tag
-        id: release
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: echo "tag=$(GITHUB_REF_NAME="$RELEASE_TAG" node scripts/release-channel.mjs)" >> "$GITHUB_OUTPUT"
+        run: |
+          node scripts/check-release.mjs
+          npm run --silent release:evidence > "$RUNNER_TEMP/waaru-release-evidence.json"
       - name: Use an OIDC-capable npm CLI
         run: npm install --global npm@11.6.1 --ignore-scripts --no-audit --no-fund
-      - name: Publish with npm provenance
+      - name: Recheck release eligibility
+        id: final
         env:
-          NPM_TAG: ${{ steps.release.outputs.tag }}
-        run: npm publish --access public --provenance --tag "$NPM_TAG"
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+          node scripts/publish-candidate.mjs
+      - name: Publish with npm provenance
+        if: steps.final.outputs.publish == 'true'
+        env:
+          NPM_TAG: ${{ steps.final.outputs.tag }}
+        run: |
+          ARTIFACT_PATH="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; import { createHash } from "node:crypto"; const evidence = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/waaru-release-evidence.json", "utf8")); const actual = "sha512-" + createHash("sha512").update(readFileSync(evidence.tarballPath)).digest("base64"); if (actual !== evidence.integrity) throw new Error("Artifact changed after verification."); console.log(evidence.tarballPath);')"
+          npm publish "$ARTIFACT_PATH" --access public --provenance --tag "$NPM_TAG"
