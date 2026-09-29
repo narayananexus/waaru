@@ -1,0 +1,3566 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Waaru Developer API",
+    "version": "2026-09-26",
+    "description": "Source contract for this release; deployment requires release verification. Keys remain number-bound. Explicit workspace:* scopes cover all workspace contacts/static segments. All operations require a connected EXTERNAL_API number. Unknown input fields are rejected. Canonical phone validation, custom-field catalog policies, template freshness/quality and messaging rules are runtime constraints in addition to the schema."
+  },
+  "servers": [
+    {
+      "url": "https://api.waaru.app"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/messages": {
+      "post": {
+        "operationId": "sendMessage",
+        "summary": "send message",
+        "description": "Requires messages:send.",
+        "x-waaru-scope": "messages:send",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            },
+            "description": "Persist one unique value per logical send. Same normalized recipient and content repeats acceptance; changed request returns409. Scope is workspace and number, including after key rotation."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedMessage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/{messageId}": {
+      "get": {
+        "operationId": "getMessage",
+        "summary": "get message",
+        "description": "Requires messages:read.",
+        "x-waaru-scope": "messages:read",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "$ref": "#/components/schemas/Message"
+                    }
+                  },
+                  "required": ["message"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/conversations": {
+      "get": {
+        "operationId": "listConversations",
+        "summary": "list conversations",
+        "description": "Requires messages:read.",
+        "x-waaru-scope": "messages:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          },
+          {
+            "name": "contactId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Search contact names and phone numbers, not message bodies."
+          },
+          {
+            "name": "updatedSince",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Inclusive last-message time, not a general change-data stream."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Conversation"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/conversations/{conversationId}/messages": {
+      "get": {
+        "operationId": "listMessages",
+        "summary": "list messages",
+        "description": "Requires messages:read. Default newest first using before. since or after reads oldest first, using after for subsequent pages. before and after are mutually exclusive. since filters occurredAt; status changes to older messages require callbacks or direct reads.",
+        "x-waaru-scope": "messages:read",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["inbound", "outbound"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "received",
+                "queued",
+                "sent",
+                "delivered",
+                "read",
+                "failed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Message"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/media/{id}": {
+      "get": {
+        "operationId": "downloadMedia",
+        "summary": "download media",
+        "description": "Requires media:read.",
+        "x-waaru-scope": "media:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/contacts": {
+      "get": {
+        "operationId": "listContacts",
+        "summary": "list contacts",
+        "description": "Requires workspace:contacts:read.",
+        "x-waaru-scope": "workspace:contacts:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "updatedSince",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContactRead"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "upsertContact",
+        "summary": "upsert contact",
+        "description": "Requires workspace:contacts:write.",
+        "x-waaru-scope": "workspace:contacts:write",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contact": {
+                      "$ref": "#/components/schemas/Contact"
+                    }
+                  },
+                  "required": ["contact"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/contacts/{id}": {
+      "get": {
+        "operationId": "getContact",
+        "summary": "get contact",
+        "description": "Requires workspace:contacts:read.",
+        "x-waaru-scope": "workspace:contacts:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contact": {
+                      "$ref": "#/components/schemas/ContactRead"
+                    }
+                  },
+                  "required": ["contact"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateContact",
+        "summary": "update contact",
+        "description": "Requires workspace:contacts:write.",
+        "x-waaru-scope": "workspace:contacts:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "contact": {
+                      "$ref": "#/components/schemas/Contact"
+                    }
+                  },
+                  "required": ["contact"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/labels": {
+      "get": {
+        "operationId": "listLabels",
+        "summary": "list labels",
+        "description": "Requires workspace:contacts:read.",
+        "x-waaru-scope": "workspace:contacts:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Label"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/contacts/{id}/labels/{labelId}": {
+      "put": {
+        "operationId": "applyLabel",
+        "summary": "apply label",
+        "description": "Requires workspace:contacts:write.",
+        "x-waaru-scope": "workspace:contacts:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "labelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelChange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeLabel",
+        "summary": "remove label",
+        "description": "Requires workspace:contacts:write.",
+        "x-waaru-scope": "workspace:contacts:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "labelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelChange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/segments": {
+      "get": {
+        "operationId": "listSegments",
+        "summary": "list segments",
+        "description": "Requires workspace:segments:read.",
+        "x-waaru-scope": "workspace:segments:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Segment"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSegment",
+        "summary": "create segment",
+        "description": "Requires workspace:segments:write.",
+        "x-waaru-scope": "workspace:segments:write",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "segment": {
+                      "$ref": "#/components/schemas/Segment"
+                    }
+                  },
+                  "required": ["segment"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/segments/{id}": {
+      "get": {
+        "operationId": "getSegment",
+        "summary": "get segment",
+        "description": "Requires workspace:segments:read.",
+        "x-waaru-scope": "workspace:segments:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "segment": {
+                      "$ref": "#/components/schemas/Segment"
+                    }
+                  },
+                  "required": ["segment"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/segments/{id}/members": {
+      "get": {
+        "operationId": "listMembers",
+        "summary": "list members",
+        "description": "Requires workspace:segments:read.",
+        "x-waaru-scope": "workspace:segments:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Member"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/segments/{id}/members/{contactId}": {
+      "put": {
+        "operationId": "addMember",
+        "summary": "add member",
+        "description": "Requires workspace:segments:write.",
+        "x-waaru-scope": "workspace:segments:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "contactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipChange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeMember",
+        "summary": "remove member",
+        "description": "Requires workspace:segments:write.",
+        "x-waaru-scope": "workspace:segments:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "contactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipChange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/templates": {
+      "get": {
+        "operationId": "listTemplates",
+        "summary": "list templates",
+        "description": "Requires templates:read.",
+        "x-waaru-scope": "templates:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Template"
+                      },
+                      "maxItems": 100
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/templates/{id}": {
+      "get": {
+        "operationId": "getTemplate",
+        "summary": "get template",
+        "description": "Requires templates:read.",
+        "x-waaru-scope": "templates:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "template": {
+                      "$ref": "#/components/schemas/Template"
+                    }
+                  },
+                  "required": ["template"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/reports/activity": {
+      "get": {
+        "operationId": "getActivity",
+        "summary": "get activity",
+        "description": "Requires reports:read. Fixed seven UTC days. API calls belong to this key; callback summaries belong to its number. No message content or recipients.",
+        "x-waaru-scope": "reports:read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Activity"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhook": {
+      "get": {
+        "operationId": "getWebhook",
+        "summary": "get webhook",
+        "description": "Requires webhooks:read.",
+        "x-waaru-scope": "webhooks:read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "webhook": {
+                      "type": ["object", "null"],
+                      "description": "Callback URL, selected events, revision and delivery health. Never contains signing secrets or encrypted values."
+                    }
+                  },
+                  "required": ["webhook"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "setWebhook",
+        "summary": "set webhook",
+        "description": "Requires webhooks:manage. Use null revision to create. Updates require current revision and resume the endpoint. A new signing secret is returned only upon creation.",
+        "x-waaru-scope": "webhooks:manage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "webhook": {
+                      "$ref": "#/components/schemas/WebhookSummary"
+                    },
+                    "signingSecret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["webhook"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhook/rotate": {
+      "post": {
+        "operationId": "rotateWebhook",
+        "summary": "rotate webhook",
+        "description": "Requires webhooks:manage.",
+        "x-waaru-scope": "webhooks:manage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "signingSecret": {
+                      "type": "string"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "previousSecretExpiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "signingSecret",
+                    "revision",
+                    "previousSecretExpiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhook/test": {
+      "post": {
+        "operationId": "testWebhook",
+        "summary": "test webhook",
+        "description": "Requires webhooks:manage.",
+        "x-waaru-scope": "webhooks:manage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "delivered": {
+                      "const": true
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 191
+                    }
+                  },
+                  "required": ["delivered", "eventId"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhook/state": {
+      "post": {
+        "operationId": "setWebhookState",
+        "summary": "set webhook state",
+        "description": "Requires webhooks:manage.",
+        "x-waaru-scope": "webhooks:manage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookState"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "state": {
+                      "enum": ["ACTIVE", "DISABLED"]
+                    }
+                  },
+                  "required": ["revision", "state"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;429 safety limit;5xx temporary failure. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "wak_ API key"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SendMessage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "text"
+              },
+              "text": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "preview_url": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["body"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "text"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "template"
+              },
+              "template": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "language": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      }
+                    },
+                    "required": ["code"],
+                    "additionalProperties": false
+                  },
+                  "components": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["header", "body", "button"]
+                        },
+                        "sub_type": {
+                          "type": "string",
+                          "enum": ["quick_reply", "url", "copy_code"]
+                        },
+                        "index": {
+                          "type": "string",
+                          "pattern": "^\\d{1,2}$"
+                        },
+                        "parameters": {
+                          "maxItems": 100,
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "text"
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 1024
+                                  },
+                                  "parameter_name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  }
+                                },
+                                "required": ["type", "text"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "currency"
+                                  },
+                                  "currency": {
+                                    "type": "object",
+                                    "properties": {
+                                      "fallback_value": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 1024
+                                      },
+                                      "code": {
+                                        "type": "string",
+                                        "minLength": 3,
+                                        "maxLength": 3
+                                      },
+                                      "amount_1000": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "fallback_value",
+                                      "code",
+                                      "amount_1000"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "parameter_name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  }
+                                },
+                                "required": ["type", "currency"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "date_time"
+                                  },
+                                  "date_time": {
+                                    "type": "object",
+                                    "properties": {
+                                      "fallback_value": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 1024
+                                      }
+                                    },
+                                    "required": ["fallback_value"],
+                                    "additionalProperties": false
+                                  },
+                                  "parameter_name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  }
+                                },
+                                "required": ["type", "date_time"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "image"
+                                  },
+                                  "image": {
+                                    "type": "object",
+                                    "properties": {
+                                      "link": {
+                                        "type": "string",
+                                        "maxLength": 2048,
+                                        "format": "uri"
+                                      }
+                                    },
+                                    "required": ["link"],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": ["type", "image"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "video"
+                                  },
+                                  "video": {
+                                    "type": "object",
+                                    "properties": {
+                                      "link": {
+                                        "type": "string",
+                                        "maxLength": 2048,
+                                        "format": "uri"
+                                      }
+                                    },
+                                    "required": ["link"],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": ["type", "video"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "document"
+                                  },
+                                  "document": {
+                                    "type": "object",
+                                    "properties": {
+                                      "link": {
+                                        "type": "string",
+                                        "maxLength": 2048,
+                                        "format": "uri"
+                                      },
+                                      "filename": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 240
+                                      }
+                                    },
+                                    "required": ["link"],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": ["type", "document"],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["type", "parameters"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["name", "language"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "template"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "image"
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 1024
+                  }
+                },
+                "required": ["link"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "image"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "video"
+              },
+              "video": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 1024
+                  }
+                },
+                "required": ["link"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "video"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "audio"
+              },
+              "audio": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  }
+                },
+                "required": ["link"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "audio"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "document"
+              },
+              "document": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 1024
+                  },
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  }
+                },
+                "required": ["link"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "document"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "interactive"
+              },
+              "interactive": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "button"
+                      },
+                      "header": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "text"
+                          },
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          }
+                        },
+                        "required": ["type", "text"],
+                        "additionalProperties": false
+                      },
+                      "body": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1024
+                          }
+                        },
+                        "required": ["text"],
+                        "additionalProperties": false
+                      },
+                      "footer": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          }
+                        },
+                        "required": ["text"],
+                        "additionalProperties": false
+                      },
+                      "action": {
+                        "type": "object",
+                        "properties": {
+                          "buttons": {
+                            "minItems": 1,
+                            "maxItems": 3,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "reply"
+                                },
+                                "reply": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 256
+                                    },
+                                    "title": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 20
+                                    }
+                                  },
+                                  "required": ["id", "title"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["type", "reply"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["buttons"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["type", "body", "action"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "list"
+                      },
+                      "header": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "text"
+                          },
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          }
+                        },
+                        "required": ["type", "text"],
+                        "additionalProperties": false
+                      },
+                      "body": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1024
+                          }
+                        },
+                        "required": ["text"],
+                        "additionalProperties": false
+                      },
+                      "footer": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          }
+                        },
+                        "required": ["text"],
+                        "additionalProperties": false
+                      },
+                      "action": {
+                        "type": "object",
+                        "properties": {
+                          "button": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20
+                          },
+                          "sections": {
+                            "minItems": 1,
+                            "maxItems": 10,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string",
+                                  "maxLength": 24
+                                },
+                                "rows": {
+                                  "minItems": 1,
+                                  "maxItems": 10,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200
+                                      },
+                                      "title": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 24
+                                      },
+                                      "description": {
+                                        "type": "string",
+                                        "maxLength": 72
+                                      }
+                                    },
+                                    "required": ["id", "title"],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": ["rows"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["button", "sections"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["type", "body", "action"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["messaging_product", "to", "type", "interactive"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "location"
+              },
+              "location": {
+                "type": "object",
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": ["latitude", "longitude"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["messaging_product", "to", "type", "location"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "messaging_product": {
+                "type": "string",
+                "const": "whatsapp"
+              },
+              "recipient_type": {
+                "type": "string",
+                "const": "individual"
+              },
+              "to": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "contacts"
+              },
+              "contacts": {
+                "minItems": 1,
+                "maxItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "object",
+                      "properties": {
+                        "formatted_name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "first_name": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "last_name": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "middle_name": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "suffix": {
+                          "type": "string",
+                          "maxLength": 32
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "maxLength": 32
+                        }
+                      },
+                      "required": ["formatted_name"],
+                      "additionalProperties": false
+                    },
+                    "phones": {
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "phone": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          },
+                          "type": {
+                            "type": "string",
+                            "maxLength": 32
+                          },
+                          "wa_id": {
+                            "type": "string",
+                            "maxLength": 32
+                          }
+                        },
+                        "required": ["phone"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "emails": {
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": "string",
+                            "maxLength": 320,
+                            "format": "email",
+                            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                          },
+                          "type": {
+                            "type": "string",
+                            "maxLength": 32
+                          }
+                        },
+                        "required": ["email"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "urls": {
+                      "maxItems": 3,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "maxLength": 2048,
+                            "format": "uri"
+                          },
+                          "type": {
+                            "type": "string",
+                            "maxLength": 32
+                          }
+                        },
+                        "required": ["url"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "org": {
+                      "type": "object",
+                      "properties": {
+                        "company": {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        "department": {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        "title": {
+                          "type": "string",
+                          "maxLength": 256
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["messaging_product", "to", "type", "contacts"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AcceptedMessage": {
+        "type": "object",
+        "properties": {
+          "messaging_product": {
+            "const": "whatsapp"
+          },
+          "messageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "status": {
+            "const": "queued"
+          }
+        },
+        "required": ["messaging_product", "messageId", "status"],
+        "additionalProperties": false
+      },
+      "Contact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "phoneE164": {
+            "type": "string"
+          },
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countryCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customAttributes": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "phoneE164",
+          "firstName",
+          "lastName",
+          "email",
+          "countryCode",
+          "locale",
+          "customAttributes",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ContactUpsert": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countryCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customAttributes": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "phoneE164": {
+            "type": "string"
+          }
+        },
+        "required": ["phoneE164"],
+        "additionalProperties": false
+      },
+      "ContactPatch": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countryCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customAttributes": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "ContactRead": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "phoneE164": {
+            "type": "string"
+          },
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "countryCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customAttributes": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "optedOut": {
+            "type": "boolean"
+          },
+          "labelIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "id",
+          "phoneE164",
+          "firstName",
+          "lastName",
+          "email",
+          "countryCode",
+          "locale",
+          "customAttributes",
+          "createdAt",
+          "updatedAt",
+          "optedOut"
+        ],
+        "additionalProperties": false
+      },
+      "Label": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "additionalProperties": false
+      },
+      "LabelChange": {
+        "type": "object",
+        "properties": {
+          "contactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "labelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "applied": {
+            "type": "boolean"
+          }
+        },
+        "required": ["contactId", "labelId", "applied"],
+        "additionalProperties": false
+      },
+      "Segment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": ["string", "null"]
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "name", "description", "memberCount", "updatedAt"],
+        "additionalProperties": false
+      },
+      "SegmentCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "contactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "addedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "contactId", "addedAt"],
+        "additionalProperties": false
+      },
+      "MembershipChange": {
+        "type": "object",
+        "properties": {
+          "segmentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "contactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["segmentId", "contactId", "changed", "memberCount"],
+        "additionalProperties": false
+      },
+      "Template": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "name": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "parameterFormat": {
+            "type": "string"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "maxItems": 100
+          },
+          "status": {
+            "const": "APPROVED"
+          },
+          "quality": {
+            "type": ["string", "null"]
+          },
+          "statusSyncedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "qualitySyncedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "language",
+          "category",
+          "parameterFormat",
+          "components",
+          "status",
+          "quality",
+          "statusSyncedAt",
+          "qualitySyncedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "id",
+          "conversationId",
+          "contactId",
+          "direction",
+          "status",
+          "type",
+          "occurredAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "contactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "direction": {
+            "enum": ["inbound", "outbound"]
+          },
+          "status": {
+            "enum": [
+              "received",
+              "queued",
+              "sent",
+              "delivered",
+              "read",
+              "failed"
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "text": {
+            "type": "object"
+          },
+          "media": {
+            "type": "object"
+          },
+          "template": {
+            "type": "object"
+          },
+          "interactive": {
+            "type": "object"
+          },
+          "location": {
+            "type": "object"
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "failureCode": {
+            "type": "string"
+          }
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "contactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "humanOwned": {
+            "type": "boolean"
+          },
+          "lastMessage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "contactId",
+          "phoneNumber",
+          "contactName",
+          "lastMessageAt",
+          "humanOwned",
+          "lastMessage"
+        ],
+        "additionalProperties": false
+      },
+      "Activity": {
+        "type": "object",
+        "properties": {
+          "retention": {
+            "type": "object",
+            "properties": {
+              "days": {
+                "type": "number",
+                "const": 7
+              },
+              "timezone": {
+                "type": "string",
+                "const": "UTC"
+              },
+              "startsAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "endsAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "dates": {
+                "minItems": 7,
+                "maxItems": 7,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                }
+              }
+            },
+            "required": ["days", "timezone", "startsAt", "endsAt", "dates"],
+            "additionalProperties": false
+          },
+          "api": {
+            "type": "object",
+            "properties": {
+              "totalCalls": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "daily": {
+                "minItems": 7,
+                "maxItems": 7,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["date", "count"],
+                  "additionalProperties": false
+                }
+              },
+              "operations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "type": "string",
+                      "enum": [
+                        "SEND_MESSAGE",
+                        "GET_MESSAGE",
+                        "LIST_CONVERSATIONS",
+                        "LIST_CONVERSATION_MESSAGES",
+                        "GET_MEDIA",
+                        "LEGACY_API_KEY"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["operation", "count"],
+                  "additionalProperties": false
+                }
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "SUCCESS",
+                        "CLIENT_ERROR",
+                        "RATE_LIMITED",
+                        "SERVER_ERROR"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["result", "count"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["totalCalls", "daily", "operations", "results"],
+            "additionalProperties": false
+          },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "deliveryCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "attemptCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "daily": {
+                "minItems": 7,
+                "maxItems": 7,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["date", "count"],
+                  "additionalProperties": false
+                }
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "event": {
+                      "type": "string",
+                      "enum": [
+                        "MESSAGE_RECEIVED",
+                        "MESSAGE_SENT",
+                        "MESSAGE_DELIVERED",
+                        "MESSAGE_READ",
+                        "MESSAGE_FAILED"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["event", "count"],
+                  "additionalProperties": false
+                }
+              },
+              "statuses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["PENDING", "CLAIMED", "DELIVERED", "TERMINAL"]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["status", "count"],
+                  "additionalProperties": false
+                }
+              },
+              "recentDeliveries": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "eventType": {
+                      "type": "string",
+                      "enum": [
+                        "MESSAGE_RECEIVED",
+                        "MESSAGE_SENT",
+                        "MESSAGE_DELIVERED",
+                        "MESSAGE_READ",
+                        "MESSAGE_FAILED"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["PENDING", "CLAIMED", "DELIVERED", "TERMINAL"]
+                    },
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "responseStatus": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "lastErrorCode": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "terminal_response",
+                            "endpoint_paused",
+                            "delivery_expired",
+                            "retryable_response",
+                            "media_ingest_expired"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "deliveredAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "terminalAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "eventType",
+                    "status",
+                    "attempts",
+                    "responseStatus",
+                    "lastErrorCode",
+                    "createdAt",
+                    "deliveredAt",
+                    "terminalAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "deliveryCount",
+              "attemptCount",
+              "daily",
+              "events",
+              "statuses",
+              "recentDeliveries"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["retention", "api", "webhook"],
+        "additionalProperties": false
+      },
+      "WebhookWrite": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "callbackUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "description": "Public HTTPS URL, port 443, no credentials/query/fragment. Required for creation. DNS validation is enforced."
+          },
+          "selectedEvents": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "MESSAGE_RECEIVED",
+                "MESSAGE_SENT",
+                "MESSAGE_DELIVERED",
+                "MESSAGE_READ",
+                "MESSAGE_FAILED"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 5
+          }
+        },
+        "required": ["revision", "selectedEvents"],
+        "additionalProperties": false
+      },
+      "Revision": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["revision"],
+        "additionalProperties": false
+      },
+      "WebhookState": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "enum": ["ACTIVE", "DISABLED"]
+          }
+        },
+        "required": ["revision", "state"],
+        "additionalProperties": false
+      },
+      "WebhookSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 191
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "type": "string"
+          },
+          "selectedEvents": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "MESSAGE_RECEIVED",
+                "MESSAGE_SENT",
+                "MESSAGE_DELIVERED",
+                "MESSAGE_READ",
+                "MESSAGE_FAILED"
+              ]
+            }
+          }
+        },
+        "required": ["id", "revision", "state", "selectedEvents"],
+        "additionalProperties": false
+      }
+    }
+  }
+}
