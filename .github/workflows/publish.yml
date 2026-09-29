@@ -84,16 +84,23 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
       - name: Verify SDK and package bytes
-        run: npm run release:evidence
+        run: |
+          node scripts/check-release.mjs
+          npm run --silent release:evidence > "$RUNNER_TEMP/waaru-release-evidence.json"
       - name: Use an OIDC-capable npm CLI
         run: npm install --global npm@11.6.1 --ignore-scripts --no-audit --no-fund
       - name: Recheck release eligibility
         id: final
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: node scripts/publish-candidate.mjs
+        run: |
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+          node scripts/publish-candidate.mjs
       - name: Publish with npm provenance
         if: steps.final.outputs.publish == 'true'
         env:
           NPM_TAG: ${{ steps.final.outputs.tag }}
-        run: npm publish --access public --provenance --tag "$NPM_TAG"
+        run: |
+          ARTIFACT_PATH="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; import { createHash } from "node:crypto"; const evidence = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/waaru-release-evidence.json", "utf8")); const actual = "sha512-" + createHash("sha512").update(readFileSync(evidence.tarballPath)).digest("base64"); if (actual !== evidence.integrity) throw new Error("Artifact changed after verification."); console.log(evidence.tarballPath);')"
+          npm publish "$ARTIFACT_PATH" --access public --provenance --tag "$NPM_TAG"

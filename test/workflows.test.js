@@ -49,8 +49,10 @@ test('publishing follows successful main CI, release approval, and provenance ch
   assert.match(workflow, /head_repository\.full_name == github\.repository/);
   assert.match(workflow, /scripts\/publish-candidate\.mjs/);
   assert.match(workflow, /environment: npm/);
-  assert.match(workflow, /npm run release:evidence/);
-  assert.match(workflow, /npm publish --access public --provenance/);
+  assert.match(workflow, /npm run --silent release:evidence/);
+  assert.match(workflow, /npm publish "\$ARTIFACT_PATH" --access public --provenance/);
+  assert.match(workflow, /Artifact changed after verification/);
+  assert.match(workflow, /git fetch origin main/);
 
   const { releaseChannel } = await import('../scripts/release-channel.mjs');
   assert.equal(releaseChannel('1.0.0-beta.3', 'v1.0.0-beta.3'), 'beta');
