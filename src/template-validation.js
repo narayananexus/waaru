@@ -6,19 +6,20 @@ function array(value, min, max, label) {
 function optionalText(value, max, label) {
   if (value !== undefined) check(typeof value === 'string' && value.trim().length <= max, `${label} is invalid.`);
 }
-function parameter(p) {
+function parameter(p, trim = false) {
   const named = ['text', 'currency', 'date_time'].includes(p?.type);
   object(p, named ? ['type', p.type, 'parameter_name'] : ['type', p?.type], 'Template parameter');
-  if (p.parameter_name !== undefined) string(p.parameter_name, 128, 'Parameter name');
-  if (p.type === 'text') string(p.text, 1024, 'Parameter text');
+  const normalized = (value) => trim && typeof value === 'string' ? value.trim() : value;
+  if (p.parameter_name !== undefined) string(normalized(p.parameter_name), 128, 'Parameter name');
+  if (p.type === 'text') string(normalized(p.text), 1024, 'Parameter text');
   else if (p.type === 'currency') {
     object(p.currency, ['fallback_value', 'code', 'amount_1000'], 'Currency');
-    string(p.currency.fallback_value, 1024, 'Currency fallback');
+    string(normalized(p.currency.fallback_value), 1024, 'Currency fallback');
     check(typeof p.currency.code === 'string' && p.currency.code.length === 3, 'Currency code must have three characters.');
     check(Number.isInteger(p.currency.amount_1000), 'Currency amount must be an integer.');
   } else if (p.type === 'date_time') {
     object(p.date_time, ['fallback_value'], 'Date/time');
-    string(p.date_time.fallback_value, 1024, 'Date/time fallback');
+    string(normalized(p.date_time.fallback_value), 1024, 'Date/time fallback');
   } else if (['image', 'video', 'document'].includes(p.type)) {
     object(p[p.type], p.type === 'document' ? ['link', 'filename'] : ['link'], 'Media parameter');
     mediaLink(p[p.type].link);
@@ -50,7 +51,7 @@ function carousel(component) {
     check(Number.isInteger(card.card_index) && card.card_index >= 0 && card.card_index <= 9, 'Carousel card index is invalid.');
     array(card.components, 1, 4, 'Carousel card components');
     for (const c of card.components) {
-      object(c, c.type === 'button' ? ['type', 'sub_type', 'index', 'parameters'] : ['type', 'parameters'], 'Carousel card component');
+      object(c, c?.type === 'button' ? ['type', 'sub_type', 'index', 'parameters'] : ['type', 'parameters'], 'Carousel card component');
       if (c.type === 'header') {
         array(c.parameters, 1, 1, 'Carousel header parameters');
         const p = c.parameters[0];
@@ -68,7 +69,7 @@ function carousel(component) {
         array(c.parameters, 1, 100, 'Carousel body parameters');
         for (const p of c.parameters) {
           check(['text', 'currency', 'date_time'].includes(p?.type), 'Unsupported carousel body parameter.');
-          parameter(p);
+          parameter(p, true);
           const text = p.type === 'text' ? p.text : p[p.type].fallback_value;
           check(text.trim().length > 0 && (p.parameter_name === undefined || p.parameter_name.trim().length > 0), 'Carousel text cannot be empty.');
         }

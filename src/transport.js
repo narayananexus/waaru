@@ -304,6 +304,7 @@ export function createTransport(options = {}) {
         throw new WaaruConnectionError("Request cancelled before dispatch.", false, requestId);
       }
 
+      let correlationId = requestId;
       const isWrite = method !== "GET";
       const controller = new AbortController();
       let dispatched = false;
@@ -333,7 +334,7 @@ export function createTransport(options = {}) {
               ? "Request cancelled after dispatch. The write outcome is unknown."
               : "Request cancelled.",
             isWrite && dispatched,
-            requestId,
+            correlationId,
           ),
         );
       };
@@ -346,7 +347,7 @@ export function createTransport(options = {}) {
               ? "Request timed out. The write outcome is unknown."
               : "Request timed out.",
             isWrite && dispatched,
-            requestId,
+            correlationId,
           ),
         );
       }, duration);
@@ -370,6 +371,7 @@ export function createTransport(options = {}) {
             signal: controller.signal,
           });
           const resolvedRequestId = responseRequestId(response, requestId);
+          correlationId = resolvedRequestId;
           if (!response.ok) {
             let data;
             try {
@@ -425,7 +427,7 @@ export function createTransport(options = {}) {
         };
         return await Promise.race([run(), interrupted]);
       } catch (error) {
-        throw safeFailure(error, { isWrite, dispatched, requestId, timedOut });
+        throw safeFailure(error, { isWrite, dispatched, requestId: correlationId, timedOut });
       } finally {
         if (!binaryTransferred) {
           cleanup();

@@ -108,3 +108,45 @@ test('timestamp filters follow API RFC3339 calendar and optional seconds', async
     await assert.rejects(client.contacts.list({ updatedSince }), WaaruValidationError);
   assert.equal(calls.length, 2);
 });
+test('malformed nested carousel components use SDK validation errors', async () => {
+  const { client, calls } = mock(accepted, 202);
+  for (const bad of [null, undefined, 1]) {
+    const components = [{ ...carousel, cards: [0, 1].map(card_index => ({ card_index, components: [bad] })) }];
+    await assert.rejects(client.messages.sendTemplate({ ...base, components }), WaaruValidationError);
+  }
+  assert.equal(calls.length, 0);
+});
+test('deadline, cancellation and stream failures retain server correlation', async () => {
+  const serverId = 'server-correlation';
+  for (const kind of ['timeout', 'cancel', 'stream-error', 'binary-timeout']) {
+    const aborter = new AbortController();
+    const client = new Waaru({ apiKey, fetch: async () => {
+      const body = new ReadableStream({ start(controller) {
+        if (kind === 'stream-error') controller.error(new Error('private transport details'));
+        if (kind === 'cancel') setTimeout(() => aborter.abort(), 5);
+      }});
+      return new Response(body, { status: 200, headers: { 'x-request-id': serverId } });
+    }});
+    const invoke = kind === 'binary-timeout'
+      ? async () => (await client.media.download('asset', { timeoutMs: 15 })).arrayBuffer()
+      : () => client.contacts.upsert({ phoneE164: base.to }, { timeoutMs: 15, signal: aborter.signal, requestId: 'caller-correlation' });
+    await assert.rejects(invoke(), error => error.requestId === serverId && error.outcomeUnknown === (kind !== 'binary-timeout'));
+  }
+});
+test('empty serialized contact patches reject before dispatch', async () => {
+  const { client, calls } = mock({ contact: { id: 'c1' } });
+  await assert.rejects(client.contacts.update('c1', { firstName: undefined }), WaaruValidationError);
+  assert.equal(calls.length, 0);
+});
+test('carousel field limits use API trimmed values while preserving wire inputs', async () => {
+  const { client, calls } = mock(accepted, 202);
+  const value = ' '.repeat(1024) + 'A';
+  const components = [{ ...carousel, cards: [0, 1].map(card_index => ({ card_index, components: [{ type: 'body', parameters: [
+    { type: 'text', text: value, parameter_name: ' '.repeat(128) + 'name' },
+    { type: 'currency', currency: { code: 'USD', fallback_value: value, amount_1000: 1000 } },
+    { type: 'date_time', date_time: { fallback_value: value } },
+  ] }] })) }];
+  await client.messages.sendTemplate({ ...base, components });
+  assert.deepEqual(JSON.parse(calls[0][1].body).template.components, components);
+  await assert.rejects(client.messages.sendTemplate({ ...base, components: [{ type: 'body', parameters: [{ type: 'text', text: value }] }] }), WaaruValidationError);
+});

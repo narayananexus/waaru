@@ -36,7 +36,7 @@ function customAttributes(value) {
 
 function contactBody(body, { patch = false } = {}) {
   object(body, patch ? CONTACT_FIELDS.filter((field) => field !== "phoneE164") : CONTACT_FIELDS, patch ? "Contact patch" : "Contact upsert");
-  if (patch) check(Object.keys(body).length > 0, "Contact patch must contain at least one field.");
+  if (patch) check(Object.values(body).some((value) => value !== undefined), "Contact patch must contain at least one field.");
   else recipient(body.phoneE164);
   nullableField(body.firstName, 80, "First name");
   nullableField(body.lastName, 80, "Last name");
