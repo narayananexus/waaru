@@ -100,3 +100,11 @@ test('rejects invalid launch metadata and provider/private overrides before disp
   await assert.rejects(client.messages.sendTemplate({ ...base, media_assets: [{ card_index: 0, asset_id: 'bad' }] }), WaaruValidationError);
   assert.equal(calls.length, 0);
 });
+test('timestamp filters follow API RFC3339 calendar and optional seconds', async () => {
+  const { client, calls } = mock({ items: [], nextCursor: null });
+  await client.contacts.list({ updatedSince: '2026-10-08T20:00Z' });
+  await client.contacts.list({ updatedSince: '2024-02-29T20:00:00+05:30' });
+  for (const updatedSince of ['October 8, 2026', '2026-02-29T20:00:00Z', '2026-10-08T24:00:00Z', '2026-13-01T00:00:00Z'])
+    await assert.rejects(client.contacts.list({ updatedSince }), WaaruValidationError);
+  assert.equal(calls.length, 2);
+});

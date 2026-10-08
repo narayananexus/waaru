@@ -20,8 +20,10 @@ export function pageQuery(query = {}, extraKeys = [], label = "Query") {
 }
 
 export function timestamp(value, label) {
-  const match = typeof value === "string" && /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
-  const days = match && new Date(Date.UTC(Number(match[1]), Number(match[2]), 0)).getUTCDate();
+  const match = typeof value === "string" && /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
+  const year = match && Number(match[1]);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = match && [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][Number(match[2]) - 1];
   check(match && value.length <= 64 && Number(match[2]) >= 1 && Number(match[2]) <= 12 && Number(match[3]) >= 1 && Number(match[3]) <= days && Number.isFinite(Date.parse(value)), `${label} must be an RFC3339 timestamp.`);
 }
 

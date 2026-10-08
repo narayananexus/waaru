@@ -39,6 +39,9 @@ const templates: Promise<Page<Template>> = client.templates.list({ name: "order_
 client.templates.get("template-1");
 const activity: Promise<Activity> = client.reports.activity();
 activity.then((report) => {
+  const queued: number = report.messages.daily[0].pending;
+  const stopped: number = report.webhook.outcomes[0].stopped;
+  void queued; void stopped;
   const days: 7 = report.retention.days;
   const timezone: "UTC" = report.retention.timezone;
   const operation: string = report.api.operations[0].operation;

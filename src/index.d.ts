@@ -369,6 +369,10 @@ export interface Template {
 
 export interface TemplateDetail extends Template { flowLaunch?: TemplateFlowLaunch }
 
+export interface MessageActivityDay {
+  date: string; pending: number; sent: number; delivered: number; read: number; failed: number;
+}
+export interface WebhookActivityDay { date: string; pending: number; delivered: number; stopped: number }
 export interface Activity {
   retention: {
     days: 7;
@@ -377,6 +381,7 @@ export interface Activity {
     startsAt: string;
     endsAt: string;
   };
+  messages: { total: number; daily: MessageActivityDay[] };
   api: {
     totalCalls: number;
     daily: Array<{ date: string; count: number }>;
@@ -396,6 +401,7 @@ export interface Activity {
     }>;
   };
   webhook: {
+    outcomes: WebhookActivityDay[];
     deliveryCount: number;
     attemptCount: number;
     daily: Array<{ date: string; count: number }>;
