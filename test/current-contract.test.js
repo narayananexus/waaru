@@ -150,3 +150,13 @@ test('carousel field limits use API trimmed values while preserving wire inputs'
   assert.deepEqual(JSON.parse(calls[0][1].body).template.components, components);
   await assert.rejects(client.messages.sendTemplate({ ...base, components: [{ type: 'body', parameters: [{ type: 'text', text: value }] }] }), WaaruValidationError);
 });
+test('primitive and array success bodies preserve server protocol correlation', async () => {
+  for (const body of [null, true, 1, 'queued', []]) {
+    for (const write of [false, true]) {
+      const { client, calls } = mock(body);
+      const invoke = write ? () => client.contacts.upsert({ phoneE164: base.to }) : () => client.instance.get();
+      await assert.rejects(invoke(), error => error instanceof WaaruProtocolError && error.requestId === 'current-contract' && error.outcomeUnknown === write);
+      assert.equal(calls.length, 1);
+    }
+  }
+});

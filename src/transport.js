@@ -420,9 +420,10 @@ export function createTransport(options = {}) {
             });
           }
           const data = await readJson(response, controller.signal, isWrite, resolvedRequestId);
-          if (data && typeof data === "object") {
-            responseMetadata.set(data, { requestId: resolvedRequestId });
+          if (data === null || typeof data !== "object" || Array.isArray(data)) {
+            throw protocolError("Waaru returned an invalid JSON envelope.", isWrite, resolvedRequestId);
           }
+          responseMetadata.set(data, { requestId: resolvedRequestId });
           return data;
         };
         return await Promise.race([run(), interrupted]);
