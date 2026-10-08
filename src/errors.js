@@ -6,11 +6,23 @@ export class WaaruError extends Error {
 }
 export class WaaruValidationError extends WaaruError {}
 export class WaaruApiError extends WaaruError {
-  constructor(status, code, requestId, retryAfterSeconds, outcomeUnknown = true) {
+  constructor(status, code, requestId, retryAfterSeconds, outcomeUnknown = false) {
     super(outcomeUnknown
-      ? `Request unsuccessful (HTTP ${status}). The send outcome is unknown; do not resend blindly.`
+      ? `Request unsuccessful (HTTP ${status}). The write outcome is unknown; do not retry blindly.`
       : `Waaru rejected the request (HTTP ${status}). Check the error code.`);
     Object.assign(this, { status, code, requestId, retryAfterSeconds, outcomeUnknown });
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      status: this.status,
+      code: this.code,
+      ...(this.requestId ? { requestId: this.requestId } : {}),
+      ...(this.retryAfterSeconds === undefined
+        ? {}
+        : { retryAfterSeconds: this.retryAfterSeconds }),
+      outcomeUnknown: this.outcomeUnknown,
+    };
   }
 }
 export class WaaruConnectionError extends WaaruError {
@@ -22,6 +34,13 @@ export class WaaruConnectionError extends WaaruError {
     super(message);
     this.outcomeUnknown = outcomeUnknown;
     this.requestId = requestId;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      ...(this.requestId ? { requestId: this.requestId } : {}),
+      outcomeUnknown: this.outcomeUnknown,
+    };
   }
 }
 export class WaaruTimeoutError extends WaaruConnectionError {}

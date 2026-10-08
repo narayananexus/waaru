@@ -17,7 +17,17 @@ test("packed artifact installs and runs as ESM and CommonJS without dependencies
       (f) => !f.path.includes(".env") && !f.path.startsWith("test/"),
     ),
   );
-  for (const required of ['LICENSE', 'SECURITY.md', 'TROUBLESHOOTING.md', 'examples/README.md', 'examples/template-recipes.mjs'])
+  for (const required of [
+    'LICENSE',
+    'SECURITY.md',
+    'TROUBLESHOOTING.md',
+    'examples/README.md',
+    'examples/template-recipes.mjs',
+    'examples/receive-webhook.mjs',
+    'docs/api-coverage.md',
+    'docs/recipes/contact-sync.md',
+    'docs/recipes/webhook-receiver.md',
+  ])
     assert.ok(pack.files.some(file => file.path === required), `${required} must ship`);
   writeFileSync(
     join(dir, "package.json"),
@@ -65,6 +75,16 @@ test("packed artifact installs and runs as ESM and CommonJS without dependencies
   assert.ok(
     !pack.files.some((file) => file.path === "PUBLISHING.md"),
     "maintainer-only publishing instructions must not ship",
+  );
+  assert.ok(
+    pack.files.every((file) =>
+      !file.path.startsWith("test/") &&
+      !file.path.startsWith("docs/source-evidence") &&
+      !file.path.startsWith("docs/superpowers/") &&
+      !file.path.startsWith(".superpowers/") &&
+      !file.path.startsWith("node_modules/")
+    ),
+    "fixtures, internal evidence and development files must not ship",
   );
   {
     writeFileSync(
