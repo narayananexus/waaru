@@ -14,7 +14,7 @@ import { responseObject } from "./helpers.js";
 function envelope(body, payloadKey) {
   object(
     body,
-    ["messaging_product", "recipient_type", "to", "type", payloadKey],
+    ["messaging_product", "recipient_type", "to", "type", payloadKey, ...(body.type === "template" ? ["templateFlowLaunch"] : [])],
     "Message",
   );
   check(body.messaging_product === "whatsapp", "messaging_product must be whatsapp.");
@@ -163,9 +163,11 @@ function validateSend(body) {
     string(body.text.body, 4096, "Text");
     if (body.text.preview_url !== undefined) check(typeof body.text.preview_url === "boolean", "preview_url must be boolean.");
   } else if (body.type === "template") {
-    object(body.template, ["name", "language", "components"], "Template message");
+    object(body.template, ["name", "language", "components", "media_assets"], "Template message");
     object(body.template.language, ["code"], "Template language");
     template({
+      ...body.template,
+      ...(body.templateFlowLaunch === undefined ? {} : { templateFlowLaunch: body.templateFlowLaunch }),
       name: body.template.name,
       language: body.template.language.code,
       ...(body.template.components === undefined ? {} : { components: body.template.components }),
@@ -248,7 +250,7 @@ export function createMessages(request) {
   };
 
   const sendTemplate = async (input, options) => {
-    object(input, ["to", "name", "language", "components"], "Template message");
+    object(input, ["to", "name", "language", "components", "media_assets", "templateFlowLaunch"], "Template message");
     recipient(input.to);
     template(input);
     return send(
@@ -256,7 +258,9 @@ export function createMessages(request) {
         messaging_product: "whatsapp",
         to: input.to,
         type: "template",
+        ...(input.templateFlowLaunch === undefined ? {} : { templateFlowLaunch: input.templateFlowLaunch }),
         template: {
+          ...(input.media_assets === undefined ? {} : { media_assets: input.media_assets }),
           name: input.name,
           language: { code: input.language },
           ...(input.components === undefined ? {} : { components: input.components }),

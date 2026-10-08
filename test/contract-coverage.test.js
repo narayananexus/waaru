@@ -29,9 +29,9 @@ function operations(document) {
 
 test("pins the reviewed OpenAPI bytes and maps every operation exactly once", () => {
   assert.equal(createHash("sha256").update(openapiBytes).digest("hex"), manifest.openapiSha256);
-  assert.equal(manifest.operations.length, 26);
-  assert.equal(new Set(manifest.operations.map((item) => item.operationId)).size, 26);
-  assert.equal(new Set(manifest.operations.map((item) => item.sdk)).size, 26);
+  assert.equal(manifest.operations.length, 32);
+  assert.equal(new Set(manifest.operations.map((item) => item.operationId)).size, 32);
+  assert.equal(new Set(manifest.operations.map((item) => item.sdk)).size, 32);
   const expected = manifest.operations
     .map(({ sdk, ...operation }) => operation)
     .sort((a, b) => a.operationId.localeCompare(b.operationId));

@@ -70,3 +70,27 @@ client.contacts.update("contact-1", { consent: true });
 client.contacts.upsert({ phoneE164: "+14155552671", customAttributes: { nested: { unsafe: true } } });
 // @ts-expect-error before and after are mutually exclusive at runtime; callers should select one direction
 client.conversations.messages("conversation-1", { before: "a", after: "b", invalidDirectionGuard: true });
+
+client.instance.get().then(value => { const available: boolean = value.apiAvailable; void available; });
+client.labels.create({ name: 'Priority' }).then(value => { const date: string | null = value.label.archivedAt; void date; });
+client.labels.update('label-1', { name: 'Renamed' });
+client.labels.archive('label-1');
+client.segments.update('segment-1', { description: null });
+client.segments.archive('segment-1');
+client.templates.get('template-1').then(value => { const hash: string | undefined = value.template.flowLaunch?.contractHash; void hash; });
+client.messages.sendTemplate({
+  to: '+14155552671', name: 'form', language: 'en_US',
+  templateFlowLaunch: { buttonIndex: 0, contractHash: 'a'.repeat(64), inputs: { ready: true, choices: ['A'] } },
+  components: [{ type: 'header', parameters: [{ type: 'location', location: { latitude: '12.5', longitude: 30 } }] }],
+});
+client.messages.sendTemplate({
+  to: '+14155552671', name: 'carousel', language: 'en_US',
+  components: [{ type: 'carousel', cards: [0, 1].map(card_index => ({ card_index, components: [{ type: 'header', parameters: [{ type: 'product', product: { catalog_id: 'catalog', product_retailer_id: 'sku' } }] }] })) }],
+  media_assets: [{ card_index: 0, asset_id: '123e4567-e89b-42d3-a456-426614174000' }],
+});
+// @ts-expect-error managed launch values exclude null and nested objects
+client.messages.sendTemplate({ to: '+14155552671', name: 'form', language: 'en_US', templateFlowLaunch: { buttonIndex: 0, contractHash: 'a', inputs: { nested: {} } } });
+// @ts-expect-error a key cannot select another sending instance
+client.instance.get({ instanceId: 'foreign' });
+// @ts-expect-error new resource methods do not administer grants
+client.labels.create({ name: 'A', scopes: ['workspace:labels:manage'] });

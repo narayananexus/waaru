@@ -158,7 +158,7 @@ const operations = [
     invoke: (c) => c.segments.create({ name: segment.name, description: null }),
     method: "POST",
     path: "/v1/developer/segments",
-    body: { name: segment.name, description: null },
+    body: { name: segment.name, description: "" },
   },
   {
     name: "segments.listMembers",

@@ -1,11 +1,17 @@
 # Developer API coverage
 
-This document describes the expansion candidate in this source branch. The public npm `latest` package remains `1.0.0-beta.2` until a separately approved release. Source support is not proof that the corresponding API version is deployed.
+This document describes the expansion candidate in this source branch. Package publication is a separately approved release step. Source support is not proof that the corresponding API version is deployed.
 
-The candidate maps 26 Developer API operations against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface without exposing private repository identifiers or planning documents. Publication requires backend verification and integration checks for the supported API release.
+The candidate maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface without exposing private repository identifiers or planning documents. Publication requires backend verification and integration checks for the supported API release.
 
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
+| `instance.get` | `instance:read` | `GET /v1/developer/instance` |
+| `labels.create` | `workspace:labels:manage` | `POST /v1/developer/labels` |
+| `labels.update` | `workspace:labels:manage` | `PATCH /v1/developer/labels/{id}` |
+| `labels.archive` | `workspace:labels:manage` | `POST /v1/developer/labels/{id}/archive` |
+| `segments.update` | `workspace:segments:manage` | `PATCH /v1/developer/segments/{id}` |
+| `segments.archive` | `workspace:segments:manage` | `POST /v1/developer/segments/{id}/archive` |
 | `messages.send` | `messages:send` | `POST /v1/messages` (202) |
 | `messages.get` | `messages:read` | `GET /v1/messages/{messageId}` |
 | `conversations.list` | `messages:read` | `GET /v1/conversations` |
@@ -37,7 +43,7 @@ The candidate maps 26 Developer API operations against a pinned OpenAPI contract
 
 ## Important behavior
 
-- API keys are server secrets and bind one connected `EXTERNAL_API` number. No method accepts a sender/instance override.
+- API keys are server secrets bound to one number. Operations require an active workspace and connected `EXTERNAL_API` number, except `instance.get`, which also diagnoses disconnected or non-API-managed numbers. No method accepts a sender/instance override. `apiAvailable` does not imply send scope, quality, consent, service-window or ownership eligibility.
 - Workspace contact/label/segment scopes intentionally cover the workspace, not only the bound number.
 - The SDK performs zero automatic retries. Persist one `idempotencyKey` before a logical send and reuse the identical body/key during deliberate reconciliation.
 - `requestId` is correlation only. It does not suppress duplicates.
@@ -47,3 +53,32 @@ The candidate maps 26 Developer API operations against a pinned OpenAPI contract
 - Webhook mutations use optimistic revisions. Never automatically retry creation or secret rotation: a lost one-time secret response requires explicit reconciliation and one deliberate rotation.
 - Media returns a streaming `Response`. Consume or cancel its body before the request deadline.
 - Errors expose safe status/code/request correlation only. `outcomeUnknown` on a failed write requires reconciliation before retrying.
+
+## Resource requirements
+
+Existing keys do not gain new scopes automatically. Ask an authorized workspace administrator to grant the required scopes in Settings; the SDK cannot create keys, elevate grants or switch inbound mode. Every request rechecks current authority. Reads share key/number/workspace budgets, and writes have separate shared limits; 429 and fail-closed 503 responses expose retry guidance without triggering SDK retries.
+
+Labels are the workspace tags exposed by this API. Creating or renaming a label validates its NFKC-normalized, trimmed, whitespace-collapsed name (1–48 characters) and the 4 KiB JSON body. System labels cannot be renamed or archived. Archiving retains history and reserves the name; active segment dependencies can return `409 resource_in_use`. Static segment updates accept name and/or description; `description: ""` clears it. The SDK translates `description: null` to `""` in create/update to preserve its existing convenience input. Management responses include `archivedAt`; list/get responses retain their established shapes. Restoration and permanent deletion are unavailable through these public operations.
+
+Contact `customAttributes` are partial scalar merges into registered workspace fields, subject to declared types, active definitions and the resulting per-contact limit. Set up definitions in Waaru before syncing. New unknown/archived keys or changed null values for typed fields can return `409 invalid_custom_attributes`; null does not remove an attribute. Basic contact fields such as firstName/email still accept null. Reads expose at most 25 scalar attributes and truncate strings to 500 characters, so never replace a stored record from the read projection.
+
+CSV imports, catalog administration, custom-attribute removal, dynamic segments, key management, inbound-mode changes and broadcast scheduling are not API-key SDK endpoints. Use the dashboard's governed import for CSVs; a server sync can deliberately call `contacts.upsert` per record and handle failures individually, with no implicit batch/retry semantics. OAuth `/external/v1` integrations and reviewed OAuth MCP tools have separate credentials, grants and contracts.
+
+## Current template capabilities
+
+`messages.sendTemplate` and raw `messages.send` support managed Form launches, carousel media/product cards, location headers, limited-time offers and coupon codes. `templates.get` exposes optional typed `flowLaunch` metadata. Submit its exact `buttonIndex` and `contractHash` with declared inputs via root `templateFlowLaunch`; the server assigns managed tokens. A stale contract or a Form requiring an awaited Logic Flow fails closed. External Flow tokens use an `action` parameter and cannot use the reserved `wfl1_` prefix.
+
+Carousel `media_assets` bindings belong inside `template` on raw sends and use workspace-owned asset UUIDs per card; they do not upload media or override ownership. Card header media accepts a public HTTPS link or provider ID; product cards require the bound WABA's catalog/product eligibility. Template definition, parameter slots, rendered-size limits, ownership, quality and future offer expiration are server-validated. Read component definitions contain no upload examples/handles.
+
+```js
+const { template } = await waaru.templates.get('template-id');
+const launch = template.flowLaunch;
+if (!launch || launch.requiresActiveLogicFlow) throw new Error('Choose an API-launchable Form');
+await waaru.messages.sendTemplate({
+  to: '+14155552671', name: template.name, language: template.language,
+  templateFlowLaunch: {
+    buttonIndex: launch.buttonIndex, contractHash: launch.contractHash,
+    inputs: { customer_name: 'Ada' }, // match this Form's declared inputs
+  },
+}, { idempotencyKey: 'form:ORDER-123' });
+```

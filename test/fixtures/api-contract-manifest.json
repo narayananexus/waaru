@@ -1,5 +1,5 @@
 {
-  "openapiSha256": "95ea56b978867edc1eafee06c1d0b7126fac534fe5eb278c12d2f55eb233bfe3",
+  "openapiSha256": "0ce39233d77d635a43490d453a056ab43b31400562bc1a262814f838257fea41",
   "contactReadStatus": "repaired_in_source_pending_release_verification",
   "releaseBlockers": [
     "Verify backend compatibility for the supported API release.",
@@ -7,31 +7,261 @@
     "Approve the package release before publication."
   ],
   "operations": [
-    { "operationId": "sendMessage", "method": "POST", "path": "/v1/messages", "scope": "messages:send", "status": 202, "sdk": "messages.send" },
-    { "operationId": "getMessage", "method": "GET", "path": "/v1/messages/{messageId}", "scope": "messages:read", "status": 200, "sdk": "messages.get" },
-    { "operationId": "listConversations", "method": "GET", "path": "/v1/conversations", "scope": "messages:read", "status": 200, "sdk": "conversations.list" },
-    { "operationId": "listMessages", "method": "GET", "path": "/v1/conversations/{conversationId}/messages", "scope": "messages:read", "status": 200, "sdk": "conversations.messages" },
-    { "operationId": "downloadMedia", "method": "GET", "path": "/v1/media/{id}", "scope": "media:read", "status": 200, "sdk": "media.download" },
-    { "operationId": "listContacts", "method": "GET", "path": "/v1/developer/contacts", "scope": "workspace:contacts:read", "status": 200, "sdk": "contacts.list" },
-    { "operationId": "upsertContact", "method": "POST", "path": "/v1/developer/contacts", "scope": "workspace:contacts:write", "status": 200, "sdk": "contacts.upsert" },
-    { "operationId": "getContact", "method": "GET", "path": "/v1/developer/contacts/{id}", "scope": "workspace:contacts:read", "status": 200, "sdk": "contacts.get" },
-    { "operationId": "updateContact", "method": "PATCH", "path": "/v1/developer/contacts/{id}", "scope": "workspace:contacts:write", "status": 200, "sdk": "contacts.update" },
-    { "operationId": "listLabels", "method": "GET", "path": "/v1/developer/labels", "scope": "workspace:contacts:read", "status": 200, "sdk": "labels.list" },
-    { "operationId": "applyLabel", "method": "PUT", "path": "/v1/developer/contacts/{id}/labels/{labelId}", "scope": "workspace:contacts:write", "status": 200, "sdk": "contacts.applyLabel" },
-    { "operationId": "removeLabel", "method": "DELETE", "path": "/v1/developer/contacts/{id}/labels/{labelId}", "scope": "workspace:contacts:write", "status": 200, "sdk": "contacts.removeLabel" },
-    { "operationId": "listSegments", "method": "GET", "path": "/v1/developer/segments", "scope": "workspace:segments:read", "status": 200, "sdk": "segments.list" },
-    { "operationId": "createSegment", "method": "POST", "path": "/v1/developer/segments", "scope": "workspace:segments:write", "status": 200, "sdk": "segments.create" },
-    { "operationId": "getSegment", "method": "GET", "path": "/v1/developer/segments/{id}", "scope": "workspace:segments:read", "status": 200, "sdk": "segments.get" },
-    { "operationId": "listMembers", "method": "GET", "path": "/v1/developer/segments/{id}/members", "scope": "workspace:segments:read", "status": 200, "sdk": "segments.listMembers" },
-    { "operationId": "addMember", "method": "PUT", "path": "/v1/developer/segments/{id}/members/{contactId}", "scope": "workspace:segments:write", "status": 200, "sdk": "segments.addMember" },
-    { "operationId": "removeMember", "method": "DELETE", "path": "/v1/developer/segments/{id}/members/{contactId}", "scope": "workspace:segments:write", "status": 200, "sdk": "segments.removeMember" },
-    { "operationId": "listTemplates", "method": "GET", "path": "/v1/developer/templates", "scope": "templates:read", "status": 200, "sdk": "templates.list" },
-    { "operationId": "getTemplate", "method": "GET", "path": "/v1/developer/templates/{id}", "scope": "templates:read", "status": 200, "sdk": "templates.get" },
-    { "operationId": "getActivity", "method": "GET", "path": "/v1/developer/reports/activity", "scope": "reports:read", "status": 200, "sdk": "reports.activity" },
-    { "operationId": "getWebhook", "method": "GET", "path": "/v1/webhook", "scope": "webhooks:read", "status": 200, "sdk": "webhooks.get" },
-    { "operationId": "setWebhook", "method": "PUT", "path": "/v1/webhook", "scope": "webhooks:manage", "status": 200, "sdk": "webhooks.save" },
-    { "operationId": "rotateWebhook", "method": "POST", "path": "/v1/webhook/rotate", "scope": "webhooks:manage", "status": 200, "sdk": "webhooks.rotate" },
-    { "operationId": "testWebhook", "method": "POST", "path": "/v1/webhook/test", "scope": "webhooks:manage", "status": 200, "sdk": "webhooks.test" },
-    { "operationId": "setWebhookState", "method": "POST", "path": "/v1/webhook/state", "scope": "webhooks:manage", "status": 200, "sdk": "webhooks.setState" }
+    {
+      "operationId": "getInstance",
+      "method": "GET",
+      "path": "/v1/developer/instance",
+      "scope": "instance:read",
+      "status": 200,
+      "sdk": "instance.get"
+    },
+    {
+      "operationId": "createLabel",
+      "method": "POST",
+      "path": "/v1/developer/labels",
+      "scope": "workspace:labels:manage",
+      "status": 200,
+      "sdk": "labels.create"
+    },
+    {
+      "operationId": "listLabels",
+      "method": "GET",
+      "path": "/v1/developer/labels",
+      "scope": "workspace:contacts:read",
+      "status": 200,
+      "sdk": "labels.list"
+    },
+    {
+      "operationId": "updateLabel",
+      "method": "PATCH",
+      "path": "/v1/developer/labels/{id}",
+      "scope": "workspace:labels:manage",
+      "status": 200,
+      "sdk": "labels.update"
+    },
+    {
+      "operationId": "archiveLabel",
+      "method": "POST",
+      "path": "/v1/developer/labels/{id}/archive",
+      "scope": "workspace:labels:manage",
+      "status": 200,
+      "sdk": "labels.archive"
+    },
+    {
+      "operationId": "updateSegment",
+      "method": "PATCH",
+      "path": "/v1/developer/segments/{id}",
+      "scope": "workspace:segments:manage",
+      "status": 200,
+      "sdk": "segments.update"
+    },
+    {
+      "operationId": "getSegment",
+      "method": "GET",
+      "path": "/v1/developer/segments/{id}",
+      "scope": "workspace:segments:read",
+      "status": 200,
+      "sdk": "segments.get"
+    },
+    {
+      "operationId": "archiveSegment",
+      "method": "POST",
+      "path": "/v1/developer/segments/{id}/archive",
+      "scope": "workspace:segments:manage",
+      "status": 200,
+      "sdk": "segments.archive"
+    },
+    {
+      "operationId": "sendMessage",
+      "method": "POST",
+      "path": "/v1/messages",
+      "scope": "messages:send",
+      "status": 202,
+      "sdk": "messages.send"
+    },
+    {
+      "operationId": "getMessage",
+      "method": "GET",
+      "path": "/v1/messages/{messageId}",
+      "scope": "messages:read",
+      "status": 200,
+      "sdk": "messages.get"
+    },
+    {
+      "operationId": "listConversations",
+      "method": "GET",
+      "path": "/v1/conversations",
+      "scope": "messages:read",
+      "status": 200,
+      "sdk": "conversations.list"
+    },
+    {
+      "operationId": "listMessages",
+      "method": "GET",
+      "path": "/v1/conversations/{conversationId}/messages",
+      "scope": "messages:read",
+      "status": 200,
+      "sdk": "conversations.messages"
+    },
+    {
+      "operationId": "downloadMedia",
+      "method": "GET",
+      "path": "/v1/media/{id}",
+      "scope": "media:read",
+      "status": 200,
+      "sdk": "media.download"
+    },
+    {
+      "operationId": "listContacts",
+      "method": "GET",
+      "path": "/v1/developer/contacts",
+      "scope": "workspace:contacts:read",
+      "status": 200,
+      "sdk": "contacts.list"
+    },
+    {
+      "operationId": "upsertContact",
+      "method": "POST",
+      "path": "/v1/developer/contacts",
+      "scope": "workspace:contacts:write",
+      "status": 200,
+      "sdk": "contacts.upsert"
+    },
+    {
+      "operationId": "getContact",
+      "method": "GET",
+      "path": "/v1/developer/contacts/{id}",
+      "scope": "workspace:contacts:read",
+      "status": 200,
+      "sdk": "contacts.get"
+    },
+    {
+      "operationId": "updateContact",
+      "method": "PATCH",
+      "path": "/v1/developer/contacts/{id}",
+      "scope": "workspace:contacts:write",
+      "status": 200,
+      "sdk": "contacts.update"
+    },
+    {
+      "operationId": "applyLabel",
+      "method": "PUT",
+      "path": "/v1/developer/contacts/{id}/labels/{labelId}",
+      "scope": "workspace:contacts:write",
+      "status": 200,
+      "sdk": "contacts.applyLabel"
+    },
+    {
+      "operationId": "removeLabel",
+      "method": "DELETE",
+      "path": "/v1/developer/contacts/{id}/labels/{labelId}",
+      "scope": "workspace:contacts:write",
+      "status": 200,
+      "sdk": "contacts.removeLabel"
+    },
+    {
+      "operationId": "listSegments",
+      "method": "GET",
+      "path": "/v1/developer/segments",
+      "scope": "workspace:segments:read",
+      "status": 200,
+      "sdk": "segments.list"
+    },
+    {
+      "operationId": "createSegment",
+      "method": "POST",
+      "path": "/v1/developer/segments",
+      "scope": "workspace:segments:write",
+      "status": 200,
+      "sdk": "segments.create"
+    },
+    {
+      "operationId": "listMembers",
+      "method": "GET",
+      "path": "/v1/developer/segments/{id}/members",
+      "scope": "workspace:segments:read",
+      "status": 200,
+      "sdk": "segments.listMembers"
+    },
+    {
+      "operationId": "addMember",
+      "method": "PUT",
+      "path": "/v1/developer/segments/{id}/members/{contactId}",
+      "scope": "workspace:segments:write",
+      "status": 200,
+      "sdk": "segments.addMember"
+    },
+    {
+      "operationId": "removeMember",
+      "method": "DELETE",
+      "path": "/v1/developer/segments/{id}/members/{contactId}",
+      "scope": "workspace:segments:write",
+      "status": 200,
+      "sdk": "segments.removeMember"
+    },
+    {
+      "operationId": "listTemplates",
+      "method": "GET",
+      "path": "/v1/developer/templates",
+      "scope": "templates:read",
+      "status": 200,
+      "sdk": "templates.list"
+    },
+    {
+      "operationId": "getTemplate",
+      "method": "GET",
+      "path": "/v1/developer/templates/{id}",
+      "scope": "templates:read",
+      "status": 200,
+      "sdk": "templates.get"
+    },
+    {
+      "operationId": "getActivity",
+      "method": "GET",
+      "path": "/v1/developer/reports/activity",
+      "scope": "reports:read",
+      "status": 200,
+      "sdk": "reports.activity"
+    },
+    {
+      "operationId": "getWebhook",
+      "method": "GET",
+      "path": "/v1/webhook",
+      "scope": "webhooks:read",
+      "status": 200,
+      "sdk": "webhooks.get"
+    },
+    {
+      "operationId": "setWebhook",
+      "method": "PUT",
+      "path": "/v1/webhook",
+      "scope": "webhooks:manage",
+      "status": 200,
+      "sdk": "webhooks.save"
+    },
+    {
+      "operationId": "rotateWebhook",
+      "method": "POST",
+      "path": "/v1/webhook/rotate",
+      "scope": "webhooks:manage",
+      "status": 200,
+      "sdk": "webhooks.rotate"
+    },
+    {
+      "operationId": "testWebhook",
+      "method": "POST",
+      "path": "/v1/webhook/test",
+      "scope": "webhooks:manage",
+      "status": 200,
+      "sdk": "webhooks.test"
+    },
+    {
+      "operationId": "setWebhookState",
+      "method": "POST",
+      "path": "/v1/webhook/state",
+      "scope": "webhooks:manage",
+      "status": 200,
+      "sdk": "webhooks.setState"
+    }
   ]
 }

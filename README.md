@@ -6,7 +6,7 @@
 
 Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
 
-> **Release status:** npm `latest` remains `1.0.0-beta.2`, which supports text and template sending. The broader 26-operation surface documented below is an unreleased source candidate. Backend verification and integration checks are required before publication; see [API coverage](docs/api-coverage.md).
+> **Release status:** The published beta supports text and template sending. The broader 32-operation surface documented below is an unreleased source candidate. Backend verification and integration checks are required before publication; see [API coverage](docs/api-coverage.md).
 
 ## 1. Install
 

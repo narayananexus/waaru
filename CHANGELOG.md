@@ -28,3 +28,10 @@ This section describes source changes only. It is not an npm release or proof of
 ## 1.0.0-beta.1 — 2026-09-11
 
 Initial phase-one package: environment key configuration, number-bound sender selection, text and template methods, template parameter types, local validation, bounded responses, deadlines/abort, structured errors and zero automatic send retries. Published to npm; live account acceptance remains a separate environment check.
+
+### Current API parity (unreleased)
+
+- Cover 32 operations, including instance capability discovery, label create/update/archive and static segment update/archive.
+- Add typed Form launch/detail metadata, carousel media/product cards and ownership bindings, location, offer, coupon and external Flow-token parameters.
+- Preserve text/template convenience inputs, error classes and zero-retry behavior. Translate segment description null to the API's empty string, and accept empty descriptions.
+- Align timestamp filter validation with RFC3339 and document custom-field catalog, pagination, auth and import boundaries. No package publication or deployment is implied.

@@ -37,13 +37,51 @@ export type TemplateParameter =
     }
   | { type: "image"; image: { link: string } }
   | { type: "video"; video: { link: string } }
-  | { type: "document"; document: { link: string; filename?: string } };
+  | { type: "document"; document: { link: string; filename?: string } }
+  | { type: "location"; location: { latitude: number | string; longitude: number | string; name?: string; address?: string } }
+  | { type: "limited_time_offer"; limited_time_offer: { expiration_time_ms: number } }
+  | { type: "coupon_code"; coupon_code: string }
+  | { type: "action"; action: { flow_token: string } };
 
 export interface TemplateComponent {
-  type: "header" | "body" | "button";
-  sub_type?: "quick_reply" | "url" | "copy_code";
+  type: "header" | "body" | "button" | "limited_time_offer";
+  sub_type?: "quick_reply" | "url" | "copy_code" | "flow";
   index?: string;
   parameters: TemplateParameter[];
+}
+
+export type CarouselBodyParameter = Extract<TemplateParameter, { type: "text" | "currency" | "date_time" }>;
+export type CarouselHeaderParameter =
+  | { type: "image"; image: { link: string } | { id: string } }
+  | { type: "video"; video: { link: string } | { id: string } }
+  | { type: "product"; product: { catalog_id: string; product_retailer_id: string } };
+export type CarouselCardComponent =
+  | { type: "header"; parameters: [CarouselHeaderParameter] }
+  | { type: "body"; parameters: CarouselBodyParameter[] }
+  | { type: "button"; sub_type: "url"; index: 0 | 1 | "0" | "1"; parameters: [{ type: "text"; text: string }] }
+  | { type: "button"; sub_type: "quick_reply"; index: 0 | 1 | "0" | "1"; parameters: [{ type: "payload"; payload: string }] };
+export interface CarouselComponent {
+  type: "carousel";
+  cards: Array<{ card_index: number; components: CarouselCardComponent[] }>;
+}
+export interface CarouselMediaBinding { card_index: number; asset_id: string }
+export type TemplateSendComponent = TemplateComponent | CarouselComponent;
+export type FlowLaunchValue = string | number | boolean | string[];
+export interface TemplateFlowLaunchRequest {
+  buttonIndex: number;
+  contractHash: string;
+  inputs?: Record<string, FlowLaunchValue>;
+}
+export interface TemplateFlowLaunch {
+  buttonIndex: number;
+  contractHash: string;
+  providerFlowId: string;
+  hosting: "WAARU" | "EXTERNAL";
+  action: "navigate" | "data_exchange";
+  screen?: string;
+  inputs: Array<{ name: string; type: "string" | "number" | "boolean" | "string_array"; required: boolean; default?: FlowLaunchValue }>;
+  requiresActiveLogicFlow: boolean;
+  unavailableReason?: string;
 }
 
 interface SendEnvelope {
@@ -59,10 +97,12 @@ export interface TextSendMessage extends SendEnvelope {
 
 export interface TemplateSendMessage extends SendEnvelope {
   type: "template";
+  templateFlowLaunch?: TemplateFlowLaunchRequest;
   template: {
     name: string;
     language: { code: string };
-    components?: TemplateComponent[];
+    components?: TemplateSendComponent[];
+    media_assets?: CarouselMediaBinding[];
   };
 }
 
@@ -260,6 +300,23 @@ export interface Label {
   name: string;
 }
 
+export interface LabelInput { name: string }
+export interface LabelManaged extends Label { archivedAt: string | null }
+export interface SegmentPatch { name?: string; description?: string | null }
+export interface SegmentManaged extends Segment { archivedAt: string | null }
+export type DeveloperApiScope =
+  | "messages:send" | "messages:read" | "media:read"
+  | "workspace:contacts:read" | "workspace:contacts:write"
+  | "workspace:segments:read" | "workspace:segments:write" | "workspace:segments:manage"
+  | "workspace:labels:manage" | "templates:read" | "webhooks:read" | "webhooks:manage"
+  | "reports:read" | "instance:read";
+export interface InstanceCapabilities {
+  instance: { id: string; status: "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "UNAUTHORIZED"; inboundHandlerMode: string };
+  scopes: DeveloperApiScope[];
+  /** Connected + EXTERNAL_API; does not guarantee permission or send eligibility. */
+  apiAvailable: boolean;
+}
+
 export interface LabelChange {
   contactId: string;
   labelId: string;
@@ -309,6 +366,8 @@ export interface Template {
   statusSyncedAt: string | null;
   qualitySyncedAt: string | null;
 }
+
+export interface TemplateDetail extends Template { flowLaunch?: TemplateFlowLaunch }
 
 export interface Activity {
   retention: {
@@ -429,7 +488,9 @@ export interface TemplateMessage {
   to: string;
   name: string;
   language: string;
-  components?: TemplateComponent[];
+  components?: TemplateSendComponent[];
+  media_assets?: CarouselMediaBinding[];
+  templateFlowLaunch?: TemplateFlowLaunchRequest;
 }
 
 export class Waaru {
@@ -455,20 +516,26 @@ export class Waaru {
     applyLabel(id: string, labelId: string, options?: RequestOptions): Promise<LabelChange>;
     removeLabel(id: string, labelId: string, options?: RequestOptions): Promise<LabelChange>;
   };
+  readonly instance: { get(options?: RequestOptions): Promise<InstanceCapabilities> };
   readonly labels: {
     list(query?: PageQuery, options?: RequestOptions): Promise<Page<Label>>;
+    create(body: LabelInput, options?: RequestOptions): Promise<{ label: LabelManaged }>;
+    update(id: string, body: LabelInput, options?: RequestOptions): Promise<{ label: LabelManaged }>;
+    archive(id: string, options?: RequestOptions): Promise<{ label: LabelManaged }>;
   };
   readonly segments: {
     list(query?: PageQuery, options?: RequestOptions): Promise<Page<Segment>>;
     get(id: string, options?: RequestOptions): Promise<{ segment: Segment }>;
     create(body: SegmentCreate, options?: RequestOptions): Promise<{ segment: Segment }>;
+    update(id: string, body: SegmentPatch, options?: RequestOptions): Promise<{ segment: SegmentManaged }>;
+    archive(id: string, options?: RequestOptions): Promise<{ segment: SegmentManaged }>;
     listMembers(id: string, query?: PageQuery, options?: RequestOptions): Promise<Page<Member>>;
     addMember(id: string, contactId: string, options?: RequestOptions): Promise<MembershipChange>;
     removeMember(id: string, contactId: string, options?: RequestOptions): Promise<MembershipChange>;
   };
   readonly templates: {
     list(query?: TemplateQuery, options?: RequestOptions): Promise<Page<Template>>;
-    get(id: string, options?: RequestOptions): Promise<{ template: Template }>;
+    get(id: string, options?: RequestOptions): Promise<{ template: TemplateDetail }>;
   };
   readonly reports: {
     activity(options?: RequestOptions): Promise<Activity>;

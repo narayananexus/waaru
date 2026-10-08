@@ -1,5 +1,5 @@
 import { check, object, recipient } from "../validation.js";
-import { pageQuery, pathId, responseCheck, responseObject, responsePage, timestamp, trimmed } from "./helpers.js";
+import { managedResult, smallBody, pageQuery, pathId, responseCheck, responseObject, responsePage, timestamp, trimmed } from "./helpers.js";
 
 const CONTACT_FIELDS = [
   "phoneE164",
@@ -103,7 +103,27 @@ export function createContactResources(request) {
     async list(query = {}, options) {
       return responsePage(await request({ method: "GET", path: "/v1/developer/labels", query: pageQuery(query, [], "Label query"), options, expectedStatus: 200 }), "label");
     },
+    async create(body, options) {
+      labelBody(body);
+      return managedResult(await request({ method: "POST", path: "/v1/developer/labels", body, options, expectedStatus: 200 }), "label");
+    },
+    async update(id, body, options) {
+      const encoded = pathId(id, "Label ID");
+      labelBody(body);
+      return managedResult(await request({ method: "PATCH", path: `/v1/developer/labels/${encoded}`, body, options, expectedStatus: 200 }), "label");
+    },
+    async archive(id, options) {
+      return managedResult(await request({ method: "POST", path: `/v1/developer/labels/${pathId(id, "Label ID")}/archive`, body: {}, options, expectedStatus: 200 }), "label");
+    },
   });
 
   return { contacts, labels };
+}
+
+function labelBody(body) {
+  object(body, ["name"], "Label input");
+  check(typeof body.name === "string", "Label name must be a string.");
+  const canonical = body.name.normalize("NFKC").trim().replace(/\s+/gu, " ");
+  check(canonical.length >= 1 && canonical.length <= 48, "Normalized label name must contain 1 to 48 characters.");
+  smallBody(body);
 }

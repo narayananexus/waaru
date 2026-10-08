@@ -20,10 +20,9 @@ export function pageQuery(query = {}, extraKeys = [], label = "Query") {
 }
 
 export function timestamp(value, label) {
-  check(
-    typeof value === "string" && value.length <= 64 && Number.isFinite(Date.parse(value)),
-    `${label} must be an RFC3339 timestamp.`,
-  );
+  const match = typeof value === "string" && /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
+  const days = match && new Date(Date.UTC(Number(match[1]), Number(match[2]), 0)).getUTCDate();
+  check(match && value.length <= 64 && Number(match[2]) >= 1 && Number(match[2]) <= 12 && Number(match[3]) >= 1 && Number(match[3]) <= days && Number.isFinite(Date.parse(value)), `${label} must be an RFC3339 timestamp.`);
 }
 
 export function trimmed(value, max, label, { nullable = false } = {}) {
@@ -34,6 +33,21 @@ export function trimmed(value, max, label, { nullable = false } = {}) {
       value.trim().length <= max,
     `${label} must be a nonempty string of at most ${max} characters.`,
   );
+}
+
+export function smallBody(body) {
+  check(Buffer.byteLength(JSON.stringify(body)) <= 4096, "Resource body exceeds the 4 KiB limit.");
+  return body;
+}
+
+export function managedResult(data, field) {
+  responseObject(data, field, field, { outcomeUnknown: true });
+  const item = data[field];
+  return responseCheck(data,
+    typeof item.id === "string" && item.id.length > 0 &&
+    typeof item.name === "string" &&
+    (item.archivedAt === null || (typeof item.archivedAt === "string" && Number.isFinite(Date.parse(item.archivedAt)))),
+    field, { outcomeUnknown: true });
 }
 
 export function responseCheck(value, valid, label, { outcomeUnknown = false } = {}) {

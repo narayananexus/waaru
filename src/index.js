@@ -7,6 +7,7 @@ import { createConversations } from "./resources/conversations.js";
 import { createMedia } from "./resources/media.js";
 import { createReports } from "./resources/reports.js";
 import { createWebhooks } from "./resources/webhooks.js";
+import { createInstance } from "./resources/instance.js";
 
 export * from "./errors.js";
 export { verifyWebhook } from "./webhook-verification.js";
@@ -24,6 +25,7 @@ export class Waaru {
     this.templates = createTemplates(transport.request);
     this.reports = createReports(transport.request);
     this.webhooks = createWebhooks(transport.request);
+    this.instance = createInstance(transport.request);
   }
 }
 
