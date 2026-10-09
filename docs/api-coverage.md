@@ -4,6 +4,8 @@ This document describes the SDK surface introduced in `1.0.0-beta.3`. Use `npm i
 
 The SDK maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
 
+The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
+
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
 | `instance.get` | `instance:read` | `GET /v1/developer/instance` |

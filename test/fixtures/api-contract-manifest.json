@@ -1,11 +1,16 @@
 {
   "openapiSha256": "0ce39233d77d635a43490d453a056ab43b31400562bc1a262814f838257fea41",
-  "contactReadStatus": "repaired_in_source_pending_release_verification",
-  "releaseBlockers": [
-    "Verify backend compatibility for the supported API release.",
-    "Complete integration checks for the supported API release.",
-    "Approve the package release before publication."
-  ],
+  "contactReadStatus": "verified_by_authenticated_release_probe",
+  "releaseBlockers": [],
+  "releaseVerification": {
+    "checkedAt": "2026-10-09T11:34:54.414Z",
+    "version": "1.0.0-beta.3",
+    "operations": 32,
+    "reads": 11,
+    "expectedRejections": 21,
+    "liveSends": 0,
+    "validWrites": 0
+  },
   "operations": [
     {
       "operationId": "getInstance",
