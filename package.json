@@ -22,6 +22,7 @@
     "test": "node --test test/*.test.js",
     "typecheck": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext test/types.test.ts",
     "verify": "npm test && npm run typecheck",
+    "verify:backend": "node scripts/check-backend.mjs",
     "release:evidence": "node scripts/release-evidence.mjs",
     "prepublishOnly": "npm run verify && node scripts/check-release.mjs",
     "pack:release": "npm run verify && npm pack",

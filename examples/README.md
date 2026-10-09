@@ -2,7 +2,7 @@
 
 These examples call real sends when run from the terminal. Use only an authorized test recipient and your own approved templates. The automated tests inject a mock transport; no provider request is made by `npm test`.
 
-From the repository, or after copying `template-recipes.mjs` into a project with `@waaru/sdk` installed, create a server-only `.env`:
+From the repository, or after copying `template-recipes.mjs` into a project with `@waaru/sdk@beta` installed, create a server-only `.env`:
 
 ```dotenv
 WAARU_API_KEY=wak_your_actual_key
@@ -30,4 +30,4 @@ If you copied the file directly into your project root, omit `examples/` from th
 
 For a URL button, supply the dynamic value/suffix expected by the approved template, not an arbitrary replacement URL. For media, use a real public HTTPS file compatible with the approved header. To combine header/body/button components, adapt the source to the exact approved template; the single-component recipes are intentionally minimal.
 
-The SDK does not create, list, approve or modify templates. Quick-reply payload and coupon-code parameter variants are not implemented. Accepted `queued` output is not a delivery receipt. Refer to [troubleshooting](../TROUBLESHOOTING.md) before responding to failures; never retry sends blindly.
+Use `templates.list/get` to discover approved templates. Template creation, approval and modification remain dashboard operations. The SDK supports coupon-code buttons and carousel quick-reply payloads; see [API coverage](../docs/api-coverage.md#current-template-capabilities) for Form, carousel, location and offer inputs. Accepted `queued` output is not a delivery receipt. Refer to [troubleshooting](../TROUBLESHOOTING.md) before responding to failures; never retry sends blindly.

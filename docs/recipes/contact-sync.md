@@ -33,6 +33,6 @@ do {
 
 Keep filters fixed while paging. Pages are live, not snapshots, and timestamp filtering is not a deletion feed. Read projections retain only supported scalar custom attributes and may omit/truncate stored data; never use them as a lossless backup or send the projection back as a complete replacement. The URL supplies contact ID on update; `phoneE164`, consent, opt-out/restriction state and deletion state are not patchable.
 
-Release note: this recipe describes the unreleased expansion. Backend verification and integration checks described in `api-coverage.md` are required before publication.
+This recipe requires `1.0.0-beta.3` or later. Install with `npm install @waaru/sdk@beta` and use the scopes listed in [API coverage](../api-coverage.md).
 
 Custom attributes merge into the registered catalog; unknown or archived fields and type mismatches fail with `invalid_custom_attributes`. Null is not an attribute-removal instruction. CSV import remains a governed dashboard operation; the SDK exposes individual upserts only.
