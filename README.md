@@ -6,15 +6,15 @@
 
 Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
 
-> **Release status:** The published beta supports text and template sending. The broader 32-operation surface documented below is an unreleased source candidate. Backend verification and integration checks are required before publication; see [API coverage](docs/api-coverage.md).
+This guide describes `1.0.0-beta.3`, which covers 32 Developer API operations. Earlier versions support text and template sending only. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
 
 ## 1. Install
 
 ```sh
-npm install @waaru/sdk
+npm install @waaru/sdk@beta
 ```
 
-This is a beta release. Check `npm view @waaru/sdk version` before installing. HTTP error `outcomeUnknown` and the recipe examples below require `1.0.0-beta.2` or later.
+This is a beta release. Check `npm view @waaru/sdk dist-tags` before installing. Idempotency keys and the expanded resource methods below require `1.0.0-beta.3` or later. The `beta` tag selects the newest prerelease; an unqualified install selects `latest`.
 
 ## 2. Add your API key
 
@@ -74,7 +74,7 @@ const result = await waaru.messages.sendTemplate({
 
 Use your exact approved template name, language and variable order. Omit `components` when your template has no variables. Header/body/button components support the existing Waaru parameter types: text, currency, date_time, image, video and document. Media parameters use public HTTPS links.
 
-See [runnable template recipes](examples/README.md) for no-variable, positional, named, media-header and URL-button shapes. Each must match your approved template. Do not infer universal button support: `payload` and `coupon_code` parameters are not supported by the current SDK/API subset.
+See [runnable template recipes](examples/README.md) for no-variable, positional, named, media-header and URL-button shapes. Each must match your approved template. The SDK also supports Form launch metadata, carousel media/product cards, location headers, limited-time offers and coupon-code buttons. Quick-reply `payload` parameters are supported inside carousel cards; they are not supported by ordinary template components. See [current template capabilities](docs/api-coverage.md#current-template-capabilities) for the exact shapes.
 
 ## Sending numbers and errors
 
@@ -111,9 +111,9 @@ Gateway errors, HTTP 408, all HTTP 5xx responses, and malformed error envelopes 
 
 Optional constructor settings: `apiKey`, `timeoutMs` (default 30 seconds), trusted `baseUrl`, and `fetch`. Per-call options are `{ signal, timeoutMs, requestId }`; send methods additionally accept `idempotencyKey`. `.env` is loaded by Node's `--env-file` flag or your framework; the SDK reads the resulting environment variables.
 
-## Expansion candidate
+## Developer API resources
 
-The source candidate adds:
+The SDK includes:
 
 - `messages.send/get`, `conversations.list/messages`, and `media.download`;
 - `contacts`, `labels`, and static `segments` namespaces with workspace-wide scoped access;
@@ -128,9 +128,9 @@ No database, build step, or runtime dependencies are needed. For repository deve
 
 Every pull request is tested on the supported Node.js versions and against the packed npm artifact. After CI passes on `main`, new versions marked ready in `.github/release-policy.json` publish automatically through npm Trusted Publishing. Existing versions are skipped. Prereleases use the `beta` tag; stable releases use `latest`. npm provenance links published package bytes to the public source and workflow.
 
-To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version with `ready: true` in `.github/release-policy.json` after compatibility checks. Merge that release PR after CI passes. An explicit GitHub Release with a matching `v<version>` tag is also supported. No reusable npm write token is needed.
+To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version with `ready: true` in `.github/release-policy.json` after backend compatibility checks. Merge that release PR after required CI passes, then have the repository owner approve the `npm` environment job in GitHub Actions. Publication follows successful CI for the current `main` commit. Tags and GitHub Releases do not independently trigger publication. No reusable npm write token is needed.
 
-The npm trusted publisher must specify organization `narayananexus`, repository `waaru`, workflow `publish.yml`, environment `npm`, and allow direct publishing. The current source candidate is marked `ready: false`, so enabling this workflow will not publish it prematurely.
+The npm trusted publisher must specify organization `narayananexus`, repository `waaru`, workflow `publish.yml`, environment `npm`, and allow direct publishing. Leave a candidate at `ready: false` until its compatibility checks are complete. The workflow skips already published versions and records source and artifact integrity in its release summary.
 
 ## Contributing
 

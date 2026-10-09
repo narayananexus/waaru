@@ -1,8 +1,8 @@
 # Developer API coverage
 
-This document describes the expansion candidate in this source branch. Package publication is a separately approved release step. Source support is not proof that the corresponding API version is deployed.
+This document describes the SDK surface introduced in `1.0.0-beta.3`. Use `npm install @waaru/sdk@beta` to select the newest prerelease. Earlier package versions do not expose the expanded methods below.
 
-The candidate maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface without exposing private repository identifiers or planning documents. Publication requires backend verification and integration checks for the supported API release.
+The SDK maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
 
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
