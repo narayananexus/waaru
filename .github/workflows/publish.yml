@@ -5,8 +5,6 @@ on:
     workflows: [CI]
     branches: [main]
     types: [completed]
-  release:
-    types: [published]
 
 permissions:
   contents: read
@@ -20,12 +18,11 @@ jobs:
     name: Check release eligibility
     if: >-
       github.repository == 'narayananexus/waaru' &&
-      ((github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository) ||
-       github.event_name == 'release')
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -36,7 +33,7 @@ jobs:
       - name: Check out candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.event.release.tag_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Require the current main commit
@@ -51,8 +48,6 @@ jobs:
           package-manager-cache: false
       - name: Check version approval and registry
         id: candidate
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: node scripts/publish-candidate.mjs
 
   publish:
@@ -91,8 +86,6 @@ jobs:
         run: npm install --global npm@11.6.1 --ignore-scripts --no-audit --no-fund
       - name: Recheck release eligibility
         id: final
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           git fetch origin main
           test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
@@ -104,3 +97,19 @@ jobs:
         run: |
           ARTIFACT_PATH="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; import { createHash } from "node:crypto"; const evidence = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/waaru-release-evidence.json", "utf8")); const actual = "sha512-" + createHash("sha512").update(readFileSync(evidence.tarballPath)).digest("base64"); if (actual !== evidence.integrity) throw new Error("Artifact changed after verification."); console.log(evidence.tarballPath);')"
           npm publish "$ARTIFACT_PATH" --access public --provenance --tag "$NPM_TAG"
+      - name: Record release evidence
+        if: steps.final.outputs.publish == 'true'
+        env:
+          NPM_TAG: ${{ steps.final.outputs.tag }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const evidence = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/waaru-release-evidence.json', 'utf8'));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            `Published ${evidence.name}@${evidence.version} to the ${process.env.NPM_TAG} tag.`,
+            `Source commit: ${evidence.commit}`,
+            `Artifact integrity: ${evidence.integrity}`,
+            'Verification: SDK tests, TypeScript consumers, packed artifact and dependency audit passed.',
+            '',
+          ].join('\n\n'));
+          NODE

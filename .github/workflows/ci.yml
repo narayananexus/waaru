@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   verify:
@@ -55,6 +55,8 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Audit dependencies
         run: npm audit --audit-level=high
+      - name: Check the backend compatibility probe syntax
+        run: node --check scripts/check-backend.mjs
       - name: Verify release artifact
         run: npm run release:evidence
 

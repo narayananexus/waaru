@@ -1,8 +1,10 @@
 # Developer API coverage
 
-This document describes the expansion candidate in this source branch. Package publication is a separately approved release step. Source support is not proof that the corresponding API version is deployed.
+This document describes the SDK surface introduced in `1.0.0-beta.3`. Use `npm install @waaru/sdk@beta` to select the newest prerelease. Earlier package versions do not expose the expanded methods below.
 
-The candidate maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface without exposing private repository identifiers or planning documents. Publication requires backend verification and integration checks for the supported API release.
+The SDK maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
+
+The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
 
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |

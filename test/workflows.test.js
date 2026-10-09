@@ -10,6 +10,8 @@ test('CI verifies supported Node versions and exposes one stable required check'
 
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /push:/);
+  assert.match(workflow, /group: ci-.*\$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /cancel-in-progress: false/);
   assert.doesNotMatch(workflow, /pull_request_target:/);
   for (const version of ['22.14.0', '24.x', '26.x']) assert.ok(workflow.includes(version));
   assert.match(workflow, /npm ci --ignore-scripts --no-audit --no-fund/);
@@ -40,7 +42,8 @@ test('workflows use immutable official actions and least privilege', () => {
 test('publishing follows successful main CI, release approval, and provenance checks', async () => {
   const workflow = read('.github/workflows/publish.yml');
 
-  assert.match(workflow, /release:\n\s+types: \[published\]/);
+  assert.doesNotMatch(workflow, /^  release:/m);
+  assert.doesNotMatch(workflow, /github\.event_name == 'release'/);
   assert.match(workflow, /workflow_run:/);
   assert.match(workflow, /workflows: \[CI\]/);
   assert.match(workflow, /workflow_run\.conclusion == 'success'/);

@@ -54,8 +54,13 @@ test("pinned schemas cover all send variants and repaired contact response shape
   const detail = openapi.paths["/v1/developer/contacts/{id}"].get.responses["200"];
   assert.ok(JSON.stringify(detail).includes("#/components/schemas/ContactRead"));
   assert.ok(openapi.components.schemas.ContactRead.properties.labelIds);
-  assert.equal(manifest.contactReadStatus, "repaired_in_source_pending_release_verification");
-  assert.ok(manifest.releaseBlockers.length >= 3);
+  assert.equal(manifest.contactReadStatus, "verified_by_authenticated_release_probe");
+  assert.deepEqual(manifest.releaseBlockers, []);
+  assert.equal(manifest.releaseVerification.version, "1.0.0-beta.3");
+  assert.equal(manifest.releaseVerification.operations, manifest.operations.length);
+  assert.equal(manifest.releaseVerification.reads + manifest.releaseVerification.expectedRejections, 32);
+  assert.equal(manifest.releaseVerification.liveSends, 0);
+  assert.equal(manifest.releaseVerification.validWrites, 0);
 });
 
 test("fixtures contain no raw API key, environment file or customer credential", () => {
