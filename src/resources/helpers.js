@@ -31,8 +31,8 @@ export function trimmed(value, max, label, { nullable = false } = {}) {
   if (nullable && value === null) return;
   check(
     typeof value === "string" &&
-      value.trim().length > 0 &&
-      value.trim().length <= max,
+      value.length <= max &&
+      value.trim().length > 0,
     `${label} must be a nonempty string of at most ${max} characters.`,
   );
 }

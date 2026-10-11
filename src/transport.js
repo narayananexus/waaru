@@ -16,6 +16,9 @@ import {
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 256 * 1024;
 const SAFE_REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+// Syntax-valid metadata is not necessarily log-safe. Reject credentials even
+// when embedded in otherwise valid correlation IDs or backend error codes.
+const API_KEY_PATTERN = /wak_[a-f0-9]{64}/i;
 const responseMetadata = new WeakMap();
 
 function validateOrigin(value) {
@@ -80,7 +83,9 @@ function responseRequestId(response, fallback) {
     response.headers.get("x-request-id"),
     response.headers.get("x-waaru-request-id"),
     fallback,
-  ].find((value) => typeof value === "string" && SAFE_REQUEST_ID.test(value));
+  ].find((value) =>
+    typeof value === "string" && SAFE_REQUEST_ID.test(value) &&
+    !API_KEY_PATTERN.test(value));
 }
 
 function retryAfterSeconds(response) {
@@ -94,7 +99,8 @@ function retryAfterSeconds(response) {
 }
 
 function safeCode(value) {
-  return typeof value === "string" && /^[A-Za-z0-9_.:-]{1,128}$/.test(value)
+  return typeof value === "string" && /^[A-Za-z0-9_.:-]{1,128}$/.test(value) &&
+    !API_KEY_PATTERN.test(value)
     ? value
     : "http_error";
 }
