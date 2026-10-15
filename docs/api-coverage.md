@@ -6,6 +6,12 @@ The SDK maps 32 Developer API operations and 14 scopes against a pinned OpenAPI 
 
 The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
 
+## Unpublished beta.4 candidate
+
+Beta.4 packages the merged #8 filter-bound and diagnostic-metadata fixes without adding an endpoint, scope, retry or dependency. Its policy remains `ready: false` pending explicit publication approval. Published beta.3 does not contain those fixes; bound raw filters and redact diagnostic metadata in the caller until a fixed version is published.
+
+Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regressions and packed ESM/CommonJS consumers), strict TypeScript and two injected client-console fixtures. A source comparison against monorepo `532fb9a03fc2bda37aa68d56849b96da51270762` matches all 32 operation IDs, methods, paths, success statuses and 14 scopes. The historical beta.3 probe above has not been relabeled as a beta.4 live test. Pinned schema bytes predate later backend projection/regex/count refinements; operation parity does not mean byte-identical schemas or prove deployed provider/media acceptance.
+
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
 | `instance.get` | `instance:read` | `GET /v1/developer/instance` |

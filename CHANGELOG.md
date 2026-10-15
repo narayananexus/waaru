@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-beta.4 - Unreleased
+
+- Reject overlong raw whitespace-padded contact/conversation/template filters and segment names before dispatch.
+- Reject credential-shaped upstream error codes and correlation IDs, including embedded values and case variants. Preserve safe secondary-header/caller correlation fallbacks.
+- Include the 22 synthetic security regressions from #8. No endpoint, scope, provider, retry or dependency changes.
+- Prepare the candidate with publication disabled until explicit release approval. Registry beta.3 does not contain these fixes.
+
 ## 1.0.0-beta.3 — 2026-10-09
 
 - Cover 32 Developer API operations and 14 scopes with typed resource namespaces, including instance discovery, contacts, labels, static segments, conversations, templates, reports and webhook management.
