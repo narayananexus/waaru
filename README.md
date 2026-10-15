@@ -6,7 +6,7 @@
 
 Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
 
-This guide describes `1.0.0-beta.3`, which covers 32 Developer API operations. Earlier versions support text and template sending only. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
+This source prepares `1.0.0-beta.4`, an unpublished security-fix candidate with publication disabled pending approval. The registry `beta` and `latest` tags still select `1.0.0-beta.3`, which covers 32 Developer API operations but lacks #8's raw filter bounds and credential-shaped diagnostic filtering. Until a fixed version is published, bound filters and redact error codes/request IDs before logging or sharing. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
 
 ## 1. Install
 
@@ -128,7 +128,7 @@ No database, build step, or runtime dependencies are needed. For repository deve
 
 Every pull request is tested on the supported Node.js versions and against the packed npm artifact. After CI passes on `main`, new versions marked ready in `.github/release-policy.json` publish automatically through npm Trusted Publishing. Existing versions are skipped. Prereleases use the `beta` tag; stable releases use `latest`. npm provenance links published package bytes to the public source and workflow.
 
-To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version with `ready: true` in `.github/release-policy.json` after backend compatibility checks. Merge that release PR after required CI passes, then have the repository owner approve the `npm` environment job in GitHub Actions. Publication follows successful CI for the current `main` commit. Tags and GitHub Releases do not independently trigger publication. No reusable npm write token is needed.
+To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version in `.github/release-policy.json`. Keep `ready: false` until backend compatibility checks and explicit owner publication approval are complete. Then set `ready: true` in a reviewed PR. Merge after required CI passes, then have the repository owner approve the `npm` environment job in GitHub Actions. Publication follows successful CI for the current `main` commit. Tags and GitHub Releases do not independently trigger publication. No reusable npm write token is needed.
 
 The npm trusted publisher must specify organization `narayananexus`, repository `waaru`, workflow `publish.yml`, environment `npm`, and allow direct publishing. Leave a candidate at `ready: false` until its compatibility checks are complete. The workflow skips already published versions and records source and artifact integrity in its release summary.
 
