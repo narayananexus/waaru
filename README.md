@@ -6,7 +6,7 @@
 
 Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
 
-This source prepares `1.0.0-beta.4`, an unpublished security-fix candidate with publication disabled pending approval. The registry `beta` and `latest` tags still select `1.0.0-beta.3`, which covers 32 Developer API operations but lacks #8's raw filter bounds and credential-shaped diagnostic filtering. Until a fixed version is published, bound filters and redact error codes/request IDs before logging or sharing. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
+This guide describes `1.0.0-beta.4`, which includes #8's raw filter bounds and credential-shaped diagnostic filtering. The 32 Developer API operations were introduced in beta.3. Confirm publication with `npm view @waaru/sdk dist-tags` before installing; merged source alone does not prove a version is on npm. Beta.3 lacks these fixes, so callers using it must bound filters and redact diagnostic metadata. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
 
 ## 1. Install
 

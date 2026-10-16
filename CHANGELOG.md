@@ -1,11 +1,11 @@
 # Changelog
 
-## 1.0.0-beta.4 - Unreleased
+## 1.0.0-beta.4 - 2026-10-16
 
 - Reject overlong raw whitespace-padded contact/conversation/template filters and segment names before dispatch.
 - Reject credential-shaped upstream error codes and correlation IDs, including embedded values and case variants. Preserve safe secondary-header/caller correlation fallbacks.
 - Include the 22 synthetic security regressions from #8. No endpoint, scope, provider, retry or dependency changes.
-- Prepare the candidate with publication disabled until explicit release approval. Registry beta.3 does not contain these fixes.
+- Owner-approved publication uses the protected workflow and `beta` tag. Verify registry availability before installing; beta.3 does not contain these fixes.
 
 ## 1.0.0-beta.3 — 2026-10-09
 
