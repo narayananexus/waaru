@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (publication withheld)
+
+- Add revision-ordered message changes and campaign list/detail/recipient reads with bounded strict queries and no automatic retries or pagination.
+- Add template lifecycle filters, cached lifecycle and safe message-attribution types; preserve the legacy template-detail RequestOptions signature.
+- Add explicit boolean `observeAllOrigins` webhook saves; omission still follows the server default false.
+- Pin the 36-operation/15-scope source contract separately from historical beta.3 live receipts and published beta.4. Require seconds in qualified timestamp filters to match current REST validation.
+- Preserve number-bound authority and SDK security/transport behavior. Hold release policy false without changing package or lockfile versions, publishing, credentials or distribution tags.
+
 ## 1.0.0-beta.4 - 2026-10-16
 
 - Reject overlong raw whitespace-padded contact/conversation/template filters and segment names before dispatch.

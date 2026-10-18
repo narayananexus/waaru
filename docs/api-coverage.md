@@ -2,13 +2,13 @@
 
 This document describes the SDK surface introduced in `1.0.0-beta.3`. Use `npm install @waaru/sdk@beta` to select the newest prerelease. Earlier package versions do not expose the expanded methods below.
 
-The SDK maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
+The published beta.4 baseline maps 32 Developer API operations and 14 scopes. Unreleased source maps 36 operations and 15 scopes against the current pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
 
 The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
 
 ## Beta.4 security-fix verification
 
-Beta.4 packages the merged #8 filter-bound and diagnostic-metadata fixes without adding an endpoint, scope, retry or dependency. The owner approved publication on 16 October; its policy is `ready: true` for the protected publishing workflow. Confirm the actual npm version and `beta` tag before installing. Beta.3 does not contain these fixes; callers using it must bound raw filters and redact diagnostic metadata.
+Beta.4 packages the merged #8 filter-bound and diagnostic-metadata fixes without adding an endpoint, scope, retry or dependency. The owner approved publication on 16 October; its publication receipt remains historical. This unreleased source resets policy to `ready: false` and does not publish a package. Confirm the actual npm version and `beta` tag before installing. Beta.3 does not contain these fixes; callers using it must bound raw filters and redact diagnostic metadata.
 
 Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regressions and packed ESM/CommonJS consumers), strict TypeScript and two injected client-console fixtures. A source comparison against monorepo `532fb9a03fc2bda37aa68d56849b96da51270762` matches all 32 operation IDs, methods, paths, success statuses and 14 scopes. The historical beta.3 probe above has not been relabeled as a beta.4 live test. Pinned schema bytes predate later backend projection/regex/count refinements; operation parity does not mean byte-identical schemas or prove deployed provider/media acceptance.
 
@@ -49,9 +49,63 @@ Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regr
 
 `messages.sendText` and `messages.sendTemplate` are convenience adapters over `messages.send`; they are not additional API operations. `verifyWebhook` is local cryptographic verification and does not make an HTTP request.
 
+## Unreleased observation contract
+
+| SDK method | Scope | HTTP operation |
+| --- | --- | --- |
+| `messages.changes` | `messages:read` | `GET /v1/messages/changes` |
+| `campaigns.list` | `campaigns:read` | `GET /v1/developer/campaigns` |
+| `campaigns.get` | `campaigns:read` | `GET /v1/developer/campaigns/{id}` |
+| `campaigns.recipients` | `campaigns:read` | `GET /v1/developer/campaigns/{id}/recipients` |
+
+These methods are implemented in source and absent from the published beta.4
+artifact. `campaigns:read` requires an explicit authorized key edit; no automatic
+scope upgrade or sender override exists. All are GET reads and do not schedule,
+send, retarget, change handling mode or claim human ownership. Runtime contracts are traced at monorepo `7ee1607964ce18231cc4e825649c18ac91755b7f`.
+The exact OpenAPI bytes include its already-implemented detail query filters
+from [documentation correction #1574](https://github.com/tanaydpatel/waaru-monorepo/pull/1574),
+pinned by the fixture manifest documentation commit and checksum.
+The beta.3 authenticated receipt remains 32-operation historical evidence; new
+backend/provider acceptance and owner-approved publication remain release blockers.
+
+`messages.changes({ after, limit }, options)` accepts opaque cursors up to 2048
+characters and limit 1 through 100. Bootstrap without `after`, then persist
+`resumeCursor` **before** reconciling retained message history. Continue
+`nextCursor` even on empty pages, commit each page durably, then save its
+`resumeCursor`. Revisions are decimal strings and can exceed JavaScript's safe
+integer range; never convert them to numbers. Outbound creation status may be
+null. Dedupe by change ID and use current message reads for current status.
+`history: "retained_only"` makes no permanent-history or tombstone promise. On
+400 `invalid_cursor` or 410 `cursor_expired`, bootstrap and reconcile again.
+Every cursor has a seven-day lease, not a seven-day retention guarantee.
+
+Campaign pages use limit 1 through 100 and opaque `after` cursors up to 512
+characters. Keep resource/parent/filter identity stable; these are current-state
+pages rather than snapshots. `recipients` accepts closed status,
+settlementState, failureClass and retargetEligible (boolean or exact true/false
+string) filters. Responses expose safe public cohorts and outcomes, not phones,
+provider IDs, rendered variables or diagnostics. Foreign/sibling/missing IDs
+remain server-rejected; IDs are encoded within a fixed path.
+
+Template list and detail support exact name/language/category plus status/includeUnavailable. Detail accepts
+`templates.get(id, { status, includeUnavailable }, options)` while
+`templates.get(id, options)` stays compatible. Default inspection is approved
+and not provider-missing; lifecycle inspection does not authorize sending.
+Types include lifecycle timestamps/reasons and safe message attribution.
+
+Webhook `save` now accepts boolean `observeAllOrigins`. Set it explicitly on
+**every save** to retain all-origin observation; omission writes false on the
+current server. The SDK does not silently read-modify-write or retry a revision
+conflict. Signing credentials and endpoint control remain governed by existing
+webhook scopes. This is not an OAuth/MCP client or a grant-management SDK.
+
+All new calls use existing deadlines, safe diagnostics and zero automatic
+retries. Return page envelopes unchanged; no unbounded all-pages collector is
+added. Real backend/DB/provider/device/browser acceptance remains separate.
+
 ## Important behavior
 
-- API keys are server secrets bound to one number. Operations require an active workspace and connected `EXTERNAL_API` number, except `instance.get`, which also diagnoses disconnected or non-API-managed numbers. No method accepts a sender/instance override. `apiAvailable` does not imply send scope, quality, consent, service-window or ownership eligibility.
+- API keys are server secrets bound to one number. Current observations require an active workspace and live authorized key/number; permitted retained reads work in either handling mode and after disconnection. Sends and workspace mutations still require connected `EXTERNAL_API`; webhook administration requires connected status. `instance.get` diagnoses lifecycle/mode without granting send eligibility. No method accepts a sender/instance override. `apiAvailable` does not imply send scope, quality, consent, service-window or ownership eligibility.
 - Workspace contact/label/segment scopes intentionally cover the workspace, not only the bound number.
 - The SDK performs zero automatic retries. Persist one `idempotencyKey` before a logical send and reuse the identical body/key during deliberate reconciliation.
 - `requestId` is correlation only. It does not suppress duplicates.

@@ -46,7 +46,19 @@ test("packed artifact installs and runs as ESM and CommonJS without dependencies
     ],
     { cwd: dir, stdio: "pipe" },
   );
-  const code = `const client=new Waaru({apiKey:'wak_'+ 'a'.repeat(64),fetch:async(url,init)=>{if(!url.endsWith('/v1/messages')||JSON.parse(init.body).text.body!=='Hi')throw Error('mapping');return Response.json({messaging_product:'whatsapp',messageId:'fixture',status:'queued'},{status:202});}});if((await client.messages.sendText({to:'+14155552671',text:'Hi'})).messageId!=='fixture')throw Error('response');`;
+  const code = `const client=new Waaru({apiKey:'wak_'+ 'a'.repeat(64),fetch:async(url,init)=>{if(!url.endsWith('/v1/messages')||JSON.parse(init.body).text.body!=='Hi')throw Error('mapping');return Response.json({messaging_product:'whatsapp',messageId:'fixture',status:'queued'},{status:202});}});if((await client.messages.sendText({to:'+14155552671',text:'Hi'})).messageId!=='fixture')throw Error('response');
+const reads=new Waaru({apiKey:'wak_'+'a'.repeat(64),fetch:async(url,init)=>{
+ const path=new URL(url).pathname;
+ if(path==='/v1/messages/changes')return Response.json({items:[],nextCursor:'next',resumeCursor:'resume',history:'retained_only'});
+ if(path==='/v1/developer/campaigns/a')return Response.json({campaign:{id:'a'}});
+ if(path==='/v1/developer/templates/a'){if(new URL(url).searchParams.get('includeUnavailable')!=='true')throw Error('filters');return Response.json({template:{id:'a'}});}
+ if(path==='/v1/webhook'){if(JSON.parse(init.body).observeAllOrigins!==true)throw Error('observation');return Response.json({webhook:{id:'a',revision:2,state:'ACTIVE',selectedEvents:['MESSAGE_RECEIVED'],observeAllOrigins:true}});}
+ return Response.json({items:[],nextCursor:null});
+}});
+if((await reads.messages.changes()).resumeCursor!=='resume')throw Error('changes');
+await reads.campaigns.list();await reads.campaigns.get('a');await reads.campaigns.recipients('a');
+await reads.templates.get('a',{includeUnavailable:true});
+await reads.webhooks.save({revision:1,selectedEvents:['MESSAGE_RECEIVED'],observeAllOrigins:true});`;
   execFileSync(
     process.execPath,
     ["--input-type=module", "-e", `import {Waaru} from '@waaru/sdk';${code}`],

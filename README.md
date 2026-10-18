@@ -8,6 +8,23 @@ Use Waaru's server-side Developer API through typed Node.js functions. Includes 
 
 This guide describes `1.0.0-beta.4`, which includes #8's raw filter bounds and credential-shaped diagnostic filtering. The 32 Developer API operations were introduced in beta.3. Confirm publication with `npm view @waaru/sdk dist-tags` before installing; merged source alone does not prove a version is on npm. Beta.3 lacks these fixes, so callers using it must bound filters and redact diagnostic metadata. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
 
+## Unreleased observation source
+
+Current source adds `messages.changes()`, `campaigns.list()`, `campaigns.get()` and
+`campaigns.recipients()`, template lifecycle filters and explicit
+`webhooks.save({ ..., observeAllOrigins: true })`. It maps 36 Developer API
+operations and 15 scopes against the current pinned contract. These additions
+are **not in the published beta.4 tarball** and no new version is published by
+this change. Package/lockfile version remains beta.4 and release policy is held
+at `ready: false` until a separately approved release.
+
+Read-only observations can keep Logic Flow handling and inspect retained data
+with an authorized number-bound key. Sends still require connected
+`EXTERNAL_API` mode and current eligibility. Keys never gain scopes automatically;
+new campaign reads need an explicit `campaigns:read` grant from an authorized
+key manager. Observation does not assign conversations, resume campaigns or send.
+See [source coverage and recovery](docs/api-coverage.md#unreleased-observation-contract).
+
 ## 1. Install
 
 ```sh

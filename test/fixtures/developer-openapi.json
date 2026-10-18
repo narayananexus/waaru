@@ -2,8 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Waaru Developer API",
-    "version": "2026-10-04",
-    "description": "Source contract for this release; deployment requires release verification. Keys remain number-bound. Explicit workspace:* scopes cover all workspace contacts/static segments. All operations except instance discovery require a connected EXTERNAL_API number. Management and discovery scopes require an explicit grant; existing keys do not gain them. Unknown input fields are rejected. Canonical phone validation, custom-field catalog policies, template freshness/quality and messaging rules are runtime constraints in addition to the schema."
+    "version": "2026-10-18",
+    "description": "Source contract for this release; deployment requires release verification. Keys remain number-bound. Explicit workspace:* scopes cover shared workspace contacts/static segments. Scoped reads work alongside Logic Flow and for retained disconnected-number data, subject to lifecycle fences. Autonomous sends and workspace writes still require connected EXTERNAL_API handling. Callback management requires a connected number but grants no reply ownership. Every scope is explicit; existing keys gain none. Unknown input fields are rejected. Consent, sender identity, service windows, template freshness/quality, rate/backlog and human-priority rules remain authoritative."
   },
   "servers": [
     {
@@ -16,6 +16,299 @@
     }
   ],
   "paths": {
+    "/v1/messages/changes": {
+      "get": {
+        "operationId": "listMessageChanges",
+        "summary": "list message changes",
+        "description": "Requires messages:read. Bootstrap without after and save resumeCursor before retained history reconciliation. Then follow nextCursor, including empty pages, and persist resumeCursor for the next polling cycle. Ordered by immutable workspace revision with a fixed cycle watermark; delivery status comes from that observation, not current message state. Outbound creation status is null. Cursor lease is seven days (410 cursor_expired); invalid or wrong-number cursor is 400 invalid_cursor. history=retained_only: deletions have no tombstones and the lease is not a history-retention promise. No send or reply authority.",
+        "x-waaru-scope": "messages:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageChanges"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/campaigns": {
+      "get": {
+        "operationId": "listCampaigns",
+        "summary": "list campaigns",
+        "description": "Requires campaigns:read. Read this number's campaign summaries. Requires an explicitly granted campaigns:read scope; existing keys gain none. Keep filters unchanged across opaque cursor pages. No schedule, send or revenue-attribution authority.",
+        "x-waaru-scope": "campaigns:read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "SCHEDULED",
+                "QUEUED",
+                "SENDING",
+                "PAUSED",
+                "COMPLETED",
+                "FAILED",
+                "CANCELLED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/campaigns/{id}": {
+      "get": {
+        "operationId": "getCampaign",
+        "summary": "get campaign",
+        "description": "Requires campaigns:read. Read one authorized campaign and retained settlement/failure cohort counts. Counters describe operational observations, not orders, conversions or revenue.",
+        "x-waaru-scope": "campaigns:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/developer/campaigns/{id}/recipients": {
+      "get": {
+        "operationId": "listCampaignRecipients",
+        "summary": "list campaign recipients",
+        "description": "Requires campaigns:read. Read paginated retained recipient outcomes for this number's campaign without phone numbers or provider identifiers. Keep filters unchanged; later status changes can change a filtered cohort, so reconcile current results. Retarget evidence does not authorize a new send.",
+        "x-waaru-scope": "campaigns:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Use nextCursor from the previous response; keep filters unchanged."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WAITING_QUOTA",
+                "ADMITTED",
+                "QUEUED",
+                "SEND_UNCERTAIN",
+                "PROVIDER_ACCEPTED",
+                "SENT",
+                "DELIVERED",
+                "READ",
+                "REPLIED",
+                "FAILED",
+                "SKIPPED",
+                "OPTED_OUT"
+              ]
+            }
+          },
+          {
+            "name": "settlementState",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "SETTLED_SUCCESS",
+                "SETTLED_FAILURE",
+                "UNCERTAIN"
+              ]
+            }
+          },
+          {
+            "name": "failureClass",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MARKETING_LIMIT",
+                "PAIR_RATE_LIMIT",
+                "SENDER_QUALITY",
+                "MARKETING_SUPPRESSED",
+                "WHATSAPP_UNREACHABLE",
+                "PERMANENT_BOUNCE",
+                "TEMPLATE_PAUSED",
+                "SHARED_CONFIGURATION",
+                "TEMPORARY_UNDELIVERED",
+                "EXPIRED_UNDELIVERED"
+              ]
+            }
+          },
+          {
+            "name": "retargetEligible",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignRecipients"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/developer/instance": {
       "get": {
         "operationId": "getInstance",
@@ -35,7 +328,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -83,7 +376,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -148,7 +441,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -207,7 +500,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -266,7 +559,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -325,7 +618,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -372,7 +665,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -431,7 +724,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -492,7 +785,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -541,7 +834,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -639,7 +932,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -757,7 +1050,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -800,7 +1093,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -886,7 +1179,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -932,7 +1225,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -981,7 +1274,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1038,7 +1331,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1090,7 +1383,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1140,7 +1433,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1207,7 +1500,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1253,7 +1546,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1330,7 +1623,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1382,7 +1675,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1432,7 +1725,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1489,6 +1782,32 @@
               "type": "string",
               "maxLength": 32
             }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["PENDING", "APPROVED", "REJECTED", "PAUSED", "DISABLED"]
+            }
+          },
+          {
+            "name": "includeUnavailable",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Inspect cached non-approved/provider-missing templates. Status may explicitly select a lifecycle state. Inspection never authorizes sending."
           }
         ],
         "responses": {
@@ -1517,7 +1836,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1533,7 +1852,7 @@
       "get": {
         "operationId": "getTemplate",
         "summary": "get template",
-        "description": "Requires templates:read.",
+        "description": "Requires templates:read. Unavailable cached templates return lifecycle metadata without live Form discovery. Approved available templates may include the sanitized live launch contract. Neither inspection nor a null unavailableReason authorizes sending.",
         "x-waaru-scope": "templates:read",
         "parameters": [
           {
@@ -1544,6 +1863,49 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 191
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"]
+            }
+          },
+          {
+            "name": "includeUnavailable",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["PENDING", "APPROVED", "REJECTED", "PAUSED", "DISABLED"]
             }
           }
         ],
@@ -1566,7 +1928,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1597,7 +1959,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1636,7 +1998,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1685,7 +2047,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1745,7 +2107,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1798,7 +2160,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1850,7 +2212,7 @@
             }
           },
           "default": {
-            "description": "400 invalid input;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
+            "description": "400 invalid input/cursor;401 missing/revoked key;403 insufficient scope;404 inaccessible resource;409 policy/revision conflict;410 changes cursor expired;422 unavailable Form or invalid launch inputs;429 safety limit;502 template provider unavailable;5xx temporary failure. Error responses contain public codes and fixed safe messages, never internal diagnostics. Honor Retry-After. Retry sends only with the same persisted idempotency key.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3276,7 +3638,7 @@
                             "type": "string",
                             "maxLength": 320,
                             "format": "email",
-                            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                           },
                           "type": {
                             "type": "string",
@@ -3366,24 +3728,10 @@
             "type": "string"
           },
           "firstName": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": ["string", "null"]
           },
           "lastName": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": ["string", "null"]
           },
           "email": {
             "anyOf": [
@@ -3391,7 +3739,7 @@
                 "type": "string",
                 "maxLength": 255,
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
               },
               {
                 "type": "null"
@@ -3448,12 +3796,12 @@
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
           }
         },
         "required": [
@@ -3501,7 +3849,7 @@
                 "type": "string",
                 "maxLength": 255,
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
               },
               {
                 "type": "null"
@@ -3593,7 +3941,7 @@
                 "type": "string",
                 "maxLength": 255,
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
               },
               {
                 "type": "null"
@@ -3663,24 +4011,10 @@
             "type": "string"
           },
           "firstName": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": ["string", "null"]
           },
           "lastName": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": ["string", "null"]
           },
           "email": {
             "anyOf": [
@@ -3688,7 +4022,7 @@
                 "type": "string",
                 "maxLength": 255,
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
               },
               {
                 "type": "null"
@@ -3745,12 +4079,12 @@
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
           },
           "updatedAt": {
             "type": "string",
             "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
           },
           "optedOut": {
             "type": "boolean"
@@ -4059,7 +4393,7 @@
             "maxItems": 100
           },
           "status": {
-            "const": "APPROVED"
+            "enum": ["PENDING", "APPROVED", "REJECTED", "PAUSED", "DISABLED"]
           },
           "quality": {
             "type": ["string", "null"]
@@ -4071,6 +4405,17 @@
           "qualitySyncedAt": {
             "type": ["string", "null"],
             "format": "date-time"
+          },
+          "lastSyncedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "providerMissingAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "unavailableReason": {
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -4083,8 +4428,899 @@
           "status",
           "quality",
           "statusSyncedAt",
-          "qualitySyncedAt"
+          "qualitySyncedAt",
+          "lastSyncedAt",
+          "providerMissingAt",
+          "unavailableReason"
         ],
+        "additionalProperties": false
+      },
+      "MessageAttribution": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "meta_webhook",
+              "agent",
+              "api",
+              "logic_flow",
+              "automation",
+              "ai_agent",
+              "broadcast",
+              "coexistence_sync",
+              "system",
+              "unknown"
+            ]
+          },
+          "actorKind": {
+            "type": "string",
+            "enum": [
+              "contact",
+              "user",
+              "logic_flow",
+              "automation",
+              "ai_agent",
+              "broadcast",
+              "coexistence",
+              "system",
+              "unknown"
+            ]
+          },
+          "actorId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 191,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "campaignId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 191,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relatedMessageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 191,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "actorKind",
+          "actorId",
+          "campaignId",
+          "relatedMessageId"
+        ],
+        "additionalProperties": false
+      },
+      "MessageChanges": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "revision": {
+                  "type": "string",
+                  "pattern": "^[1-9]\\d{0,19}$"
+                },
+                "messageId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["message.created", "message.status_changed"]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "received",
+                        "queued",
+                        "sent",
+                        "delivered",
+                        "read",
+                        "failed"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "occurredAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "revision",
+                "messageId",
+                "type",
+                "status",
+                "occurredAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          },
+          "resumeCursor": {
+            "type": "string"
+          },
+          "history": {
+            "type": "string",
+            "const": "retained_only"
+          }
+        },
+        "required": ["items", "nextCursor", "resumeCursor", "history"],
+        "additionalProperties": false
+      },
+      "CampaignList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 191
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "DRAFT",
+                    "SCHEDULED",
+                    "QUEUED",
+                    "SENDING",
+                    "PAUSED",
+                    "COMPLETED",
+                    "FAILED",
+                    "CANCELLED"
+                  ]
+                },
+                "templateId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 191
+                },
+                "pauseCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "MANUAL",
+                        "QUOTA",
+                        "MISSED_SCHEDULE",
+                        "QUALITY",
+                        "TEMPLATE",
+                        "SHARED_CONFIGURATION",
+                        "PROVIDER_LIMIT",
+                        "QUEUE_BACKPRESSURE",
+                        "WORKSPACE_BLOCKED"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "totalRecipients": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "admittedCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "quotaWaitingCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "providerAcceptedCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "sentCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "deliveredCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "readCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "repliedCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "failedCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "quickReplyCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "quickReplyUniqueCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "scheduledAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "startedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sendCompletedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "outcomeSettledAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "metricsReconciledAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "status",
+                "templateId",
+                "pauseCode",
+                "totalRecipients",
+                "admittedCount",
+                "quotaWaitingCount",
+                "providerAcceptedCount",
+                "sentCount",
+                "deliveredCount",
+                "readCount",
+                "repliedCount",
+                "failedCount",
+                "quickReplyCount",
+                "quickReplyUniqueCount",
+                "scheduledAt",
+                "startedAt",
+                "completedAt",
+                "sendCompletedAt",
+                "outcomeSettledAt",
+                "metricsReconciledAt",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["items", "nextCursor"],
+        "additionalProperties": false
+      },
+      "CampaignDetail": {
+        "type": "object",
+        "properties": {
+          "campaign": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 191
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "SCHEDULED",
+                  "QUEUED",
+                  "SENDING",
+                  "PAUSED",
+                  "COMPLETED",
+                  "FAILED",
+                  "CANCELLED"
+                ]
+              },
+              "templateId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 191
+              },
+              "pauseCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "MANUAL",
+                      "QUOTA",
+                      "MISSED_SCHEDULE",
+                      "QUALITY",
+                      "TEMPLATE",
+                      "SHARED_CONFIGURATION",
+                      "PROVIDER_LIMIT",
+                      "QUEUE_BACKPRESSURE",
+                      "WORKSPACE_BLOCKED"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "totalRecipients": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "admittedCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "quotaWaitingCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "providerAcceptedCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sentCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "deliveredCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "readCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "repliedCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "failedCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "quickReplyCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "quickReplyUniqueCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "scheduledAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "startedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "sendCompletedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "outcomeSettledAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "metricsReconciledAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "failureCohorts": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "enum": [
+                    "MARKETING_LIMIT",
+                    "PAIR_RATE_LIMIT",
+                    "SENDER_QUALITY",
+                    "MARKETING_SUPPRESSED",
+                    "WHATSAPP_UNREACHABLE",
+                    "PERMANENT_BOUNCE",
+                    "TEMPLATE_PAUSED",
+                    "SHARED_CONFIGURATION",
+                    "TEMPORARY_UNDELIVERED",
+                    "EXPIRED_UNDELIVERED"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "settlementCohorts": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "SETTLED_SUCCESS",
+                    "SETTLED_FAILURE",
+                    "UNCERTAIN"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "status",
+              "templateId",
+              "pauseCode",
+              "totalRecipients",
+              "admittedCount",
+              "quotaWaitingCount",
+              "providerAcceptedCount",
+              "sentCount",
+              "deliveredCount",
+              "readCount",
+              "repliedCount",
+              "failedCount",
+              "quickReplyCount",
+              "quickReplyUniqueCount",
+              "scheduledAt",
+              "startedAt",
+              "completedAt",
+              "sendCompletedAt",
+              "outcomeSettledAt",
+              "metricsReconciledAt",
+              "createdAt",
+              "updatedAt",
+              "failureCohorts",
+              "settlementCohorts"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["campaign"],
+        "additionalProperties": false
+      },
+      "CampaignRecipients": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 191
+                },
+                "contactId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 191
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "WAITING_QUOTA",
+                    "ADMITTED",
+                    "QUEUED",
+                    "SEND_UNCERTAIN",
+                    "PROVIDER_ACCEPTED",
+                    "SENT",
+                    "DELIVERED",
+                    "READ",
+                    "REPLIED",
+                    "FAILED",
+                    "SKIPPED",
+                    "OPTED_OUT"
+                  ]
+                },
+                "settlementState": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "SETTLED_SUCCESS",
+                    "SETTLED_FAILURE",
+                    "UNCERTAIN"
+                  ]
+                },
+                "failureClass": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "MARKETING_LIMIT",
+                        "PAIR_RATE_LIMIT",
+                        "SENDER_QUALITY",
+                        "MARKETING_SUPPRESSED",
+                        "WHATSAPP_UNREACHABLE",
+                        "PERMANENT_BOUNCE",
+                        "TEMPLATE_PAUSED",
+                        "SHARED_CONFIGURATION",
+                        "TEMPORARY_UNDELIVERED",
+                        "EXPIRED_UNDELIVERED"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "normalizedFailureCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retargetEligible": {
+                  "type": "boolean"
+                },
+                "nextEligibleAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "queuedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "providerAcceptedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sentAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "deliveredAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "readAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "repliedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "failedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "settledAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "contactId",
+                "status",
+                "settlementState",
+                "failureClass",
+                "normalizedFailureCode",
+                "retargetEligible",
+                "nextEligibleAt",
+                "queuedAt",
+                "providerAcceptedAt",
+                "sentAt",
+                "deliveredAt",
+                "readAt",
+                "repliedAt",
+                "failedAt",
+                "settledAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["items", "nextCursor"],
         "additionalProperties": false
       },
       "TemplateDetail": {
@@ -4115,7 +5351,7 @@
             "maxItems": 100
           },
           "status": {
-            "const": "APPROVED"
+            "enum": ["PENDING", "APPROVED", "REJECTED", "PAUSED", "DISABLED"]
           },
           "quality": {
             "type": ["string", "null"]
@@ -4127,6 +5363,17 @@
           "qualitySyncedAt": {
             "type": ["string", "null"],
             "format": "date-time"
+          },
+          "lastSyncedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "providerMissingAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "unavailableReason": {
+            "type": ["string", "null"]
           },
           "flowLaunch": {
             "$ref": "#/components/schemas/TemplateFlowLaunch"
@@ -4142,7 +5389,10 @@
           "status",
           "quality",
           "statusSyncedAt",
-          "qualitySyncedAt"
+          "qualitySyncedAt",
+          "lastSyncedAt",
+          "providerMissingAt",
+          "unavailableReason"
         ],
         "additionalProperties": false
       },
@@ -4244,7 +5494,8 @@
           "direction",
           "status",
           "type",
-          "occurredAt"
+          "occurredAt",
+          "attribution"
         ],
         "properties": {
           "id": {
@@ -4281,6 +5532,9 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "attribution": {
+            "$ref": "#/components/schemas/MessageAttribution"
           },
           "text": {
             "type": "object"
@@ -4373,12 +5627,12 @@
               "startsAt": {
                 "type": "string",
                 "format": "date-time",
-                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "endsAt": {
                 "type": "string",
                 "format": "date-time",
-                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               },
               "dates": {
                 "minItems": 7,
@@ -4398,7 +5652,7 @@
             "properties": {
               "total": {
                 "type": "integer",
-                "minimum": -9007199254740991,
+                "minimum": 0,
                 "maximum": 9007199254740991
               },
               "daily": {
@@ -4414,27 +5668,27 @@
                     },
                     "pending": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "sent": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "delivered": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "read": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "failed": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4458,7 +5712,7 @@
             "properties": {
               "totalCalls": {
                 "type": "integer",
-                "minimum": -9007199254740991,
+                "minimum": 0,
                 "maximum": 9007199254740991
               },
               "daily": {
@@ -4474,7 +5728,7 @@
                     },
                     "count": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4500,7 +5754,7 @@
                     },
                     "count": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4524,7 +5778,7 @@
                     },
                     "count": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4552,17 +5806,17 @@
                     },
                     "pending": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "delivered": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "stopped": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4572,12 +5826,12 @@
               },
               "deliveryCount": {
                 "type": "integer",
-                "minimum": -9007199254740991,
+                "minimum": 0,
                 "maximum": 9007199254740991
               },
               "attemptCount": {
                 "type": "integer",
-                "minimum": -9007199254740991,
+                "minimum": 0,
                 "maximum": 9007199254740991
               },
               "daily": {
@@ -4593,7 +5847,7 @@
                     },
                     "count": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4618,7 +5872,7 @@
                     },
                     "count": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4637,7 +5891,7 @@
                     },
                     "count": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     }
                   },
@@ -4667,7 +5921,7 @@
                     },
                     "attempts": {
                       "type": "integer",
-                      "minimum": -9007199254740991,
+                      "minimum": 0,
                       "maximum": 9007199254740991
                     },
                     "responseStatus": {
@@ -4702,14 +5956,14 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                     },
                     "deliveredAt": {
                       "anyOf": [
                         {
                           "type": "string",
                           "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                         },
                         {
                           "type": "null"
@@ -4721,7 +5975,7 @@
                         {
                           "type": "string",
                           "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                         },
                         {
                           "type": "null"
@@ -4784,6 +6038,11 @@
             },
             "minItems": 1,
             "maxItems": 5
+          },
+          "observeAllOrigins": {
+            "type": "boolean",
+            "default": false,
+            "description": "Explicitly observe supported native/API message origins without reply authority. Send true on every replacement PUT to retain all-origin observation; omission restores legacy API-handler events. No historical replay."
           }
         },
         "required": ["revision", "selectedEvents"],
@@ -4840,9 +6099,18 @@
                 "MESSAGE_FAILED"
               ]
             }
+          },
+          "observeAllOrigins": {
+            "type": "boolean"
           }
         },
-        "required": ["id", "revision", "state", "selectedEvents"],
+        "required": [
+          "id",
+          "revision",
+          "state",
+          "selectedEvents",
+          "observeAllOrigins"
+        ],
         "additionalProperties": false
       }
     }
