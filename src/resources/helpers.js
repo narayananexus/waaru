@@ -7,7 +7,7 @@ export function pathId(value, label) {
   return encodeURIComponent(value);
 }
 
-export function pageQuery(query = {}, extraKeys = [], label = "Query") {
+export function pageQuery(query = {}, extraKeys = [], label = "Query", cursorMax = 512) {
   object(query, ["limit", "after", ...extraKeys], label);
   if (query.limit !== undefined) {
     check(
@@ -15,12 +15,20 @@ export function pageQuery(query = {}, extraKeys = [], label = "Query") {
       "limit must be an integer from 1 through 100.",
     );
   }
-  if (query.after !== undefined) string(query.after, 512, "after cursor");
+  if (query.after !== undefined) string(query.after, cursorMax, "after cursor");
   return { ...query };
 }
 
+export function optionalEnum(value, values, label) {
+  if (value !== undefined) check(values.includes(value), `${label} is invalid.`);
+}
+
+export function queryBoolean(value, label) {
+  if (value !== undefined) check(typeof value === "boolean" || value === "true" || value === "false", `${label} must be boolean or an exact true/false string.`);
+}
+
 export function timestamp(value, label) {
-  const match = typeof value === "string" && /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
+  const match = typeof value === "string" && /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
   const year = match && Number(match[1]);
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const days = match && [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][Number(match[2]) - 1];

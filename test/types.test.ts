@@ -97,3 +97,34 @@ client.messages.sendTemplate({ to: '+14155552671', name: 'form', language: 'en_U
 client.instance.get({ instanceId: 'foreign' });
 // @ts-expect-error new resource methods do not administer grants
 client.labels.create({ name: 'A', scopes: ['workspace:labels:manage'] });
+
+client.messages.changes({ after: "opaque", limit: 100 }).then(page => {
+  const revision: string = page.items[0].revision;
+  const status: Message["status"] | null = page.items[0].status;
+  const history: "retained_only" = page.history;
+  const cursor: string = page.resumeCursor;
+  void revision; void status; void history; void cursor;
+});
+client.campaigns.list({ status: "PAUSED" });
+client.campaigns.get("campaign-a").then(page => {
+  const count: number | undefined = page.campaign.failureCohorts.PERMANENT_BOUNCE;
+  void count;
+});
+client.campaigns.recipients("campaign-a", { settlementState: "UNCERTAIN", retargetEligible: false });
+client.templates.list({ status: "PENDING", category: "UTILITY", includeUnavailable: true });
+client.templates.get("template-a", { includeUnavailable: true }, { requestId: "safe" });
+client.templates.get("template-a", { timeoutMs: 1000 });
+client.messages.get("message-a").then(page => { const campaign: string | null = page.message.attribution.campaignId; void campaign; });
+client.webhooks.save({ revision: 1, selectedEvents: ["MESSAGE_RECEIVED"], observeAllOrigins: true });
+// @ts-expect-error no sender override on observation
+client.messages.changes({ instanceId: "foreign" });
+// @ts-expect-error campaign reads do not schedule or send
+client.campaigns.schedule("campaign-a");
+// @ts-expect-error closed campaign statuses
+client.campaigns.list({ status: "UNKNOWN" });
+// @ts-expect-error webhooks boolean is not a string
+client.webhooks.save({ revision: 1, selectedEvents: ["MESSAGE_RECEIVED"], observeAllOrigins: "true" });
+// @ts-expect-error template details only expose documented lifecycle query fields
+client.templates.get("template-a", { includeUnavailable: true, instanceId: "foreign" });
+
+client.templates.get("template-a", { name: "order_update", language: "en", category: "UTILITY" });
