@@ -1,5 +1,5 @@
 import { check, object, recipient } from "../validation.js";
-import { managedResult, smallBody, pageQuery, pathId, responseCheck, responseObject, responsePage, timestamp, trimmed } from "./helpers.js";
+import { managedResult, smallBody, pageQuery, pathId, responseCheck, responseObject, responsePage, timestamp, trimmed, queryBoolean } from "./helpers.js";
 
 const CONTACT_FIELDS = [
   "phoneE164",
@@ -35,9 +35,14 @@ function customAttributes(value) {
 }
 
 function contactBody(body, { patch = false } = {}) {
-  object(body, patch ? CONTACT_FIELDS.filter((field) => field !== "phoneE164") : CONTACT_FIELDS, patch ? "Contact patch" : "Contact upsert");
-  if (patch) check(Object.values(body).some((value) => value !== undefined), "Contact patch must contain at least one field.");
-  else recipient(body.phoneE164);
+  const profileFields = CONTACT_FIELDS.filter((field) => field !== "phoneE164");
+  object(body, patch ? [...profileFields, "restoreArchived", "expectedRevision"] : CONTACT_FIELDS, patch ? "Contact patch" : "Contact upsert");
+  if (patch) {
+    check(body.restoreArchived === undefined || typeof body.restoreArchived === "boolean", "restoreArchived must be boolean.");
+    check(body.expectedRevision === undefined || (Number.isSafeInteger(body.expectedRevision) && body.expectedRevision >= 0), "expectedRevision must be a nonnegative safe integer.");
+    check(body.restoreArchived !== true || body.expectedRevision !== undefined, "Restoration requires expectedRevision from an exact contact lookup.");
+    check(body.restoreArchived === true || profileFields.some((field) => body[field] !== undefined), "Contact patch must contain a profile field or explicit restoration.");
+  } else recipient(body.phoneE164);
   nullableField(body.firstName, 80, "First name");
   nullableField(body.lastName, 80, "Last name");
   nullableField(body.email, 255, "Email", true);
@@ -78,9 +83,13 @@ export function createContactResources(request) {
       if (built.updatedSince !== undefined) timestamp(built.updatedSince, "updatedSince");
       return responsePage(await request({ method: "GET", path: "/v1/developer/contacts", query: built, options, expectedStatus: 200 }), "contact");
     },
-    async get(id, options) {
+    async get(id, queryOrOptions = {}, options) {
       const encoded = pathId(id, "Contact ID");
-      return contactResult(await request({ method: "GET", path: `/v1/developer/contacts/${encoded}`, options, expectedStatus: 200 }));
+      const hasQuery = options !== undefined || (queryOrOptions !== null && typeof queryOrOptions === "object" && Object.hasOwn(queryOrOptions, "includeArchived"));
+      const query = hasQuery ? queryOrOptions : {};
+      object(query, ["includeArchived"], "Contact detail query");
+      queryBoolean(query.includeArchived, "includeArchived");
+      return contactResult(await request({ method: "GET", path: `/v1/developer/contacts/${encoded}`, query, options: hasQuery ? options : queryOrOptions, expectedStatus: 200 }));
     },
     async upsert(body, options) {
       contactBody(body);

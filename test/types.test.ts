@@ -128,3 +128,34 @@ client.webhooks.save({ revision: 1, selectedEvents: ["MESSAGE_RECEIVED"], observ
 client.templates.get("template-a", { includeUnavailable: true, instanceId: "foreign" });
 
 client.templates.get("template-a", { name: "order_update", language: "en", category: "UTILITY" });
+
+
+// Unpublished contact restore contract; legacy RequestOptions remains accepted.
+client.contacts.get("contact-1", { includeArchived: true }, { requestId: "restore-read" }).then(({ contact }) => {
+  const archivedAt: string | null | undefined = contact.archivedAt;
+  const revision: number | undefined = contact.revision;
+  if (typeof contact.revision === "number") {
+    client.contacts.update(contact.id, { restoreArchived: true, expectedRevision: contact.revision });
+  }
+  void archivedAt; void revision;
+});
+client.contacts.get("contact-1", { includeArchived: "false" });
+client.contacts.get("contact-1", { timeoutMs: 1000, signal: new AbortController().signal });
+client.contacts.update("contact-1", { restoreArchived: true, expectedRevision: 0, email: null });
+client.contacts.update("contact-1", { restoreArchived: false, firstName: "Ada" });
+// @ts-expect-error restoration requires a reviewed lifecycle revision
+client.contacts.update("contact-1", { restoreArchived: true });
+// @ts-expect-error exact query flags cannot be ambiguous strings
+client.contacts.get("contact-1", { includeArchived: "yes" });
+// @ts-expect-error archive lookup is unavailable on contact lists
+client.contacts.list({ includeArchived: true });
+// @ts-expect-error upsert never restores archived contacts
+client.contacts.upsert({ phoneE164: "+14155552671", restoreArchived: true, expectedRevision: 0 });
+
+// Existing consumer-created Contact projections remain assignable.
+const olderContact: Contact = {
+  id: "contact-1", phoneE164: "+14155552671", firstName: null, lastName: null,
+  email: null, countryCode: null, locale: null, customAttributes: {},
+  createdAt: "2026-10-19T00:00:00Z", updatedAt: "2026-10-19T00:00:00Z",
+};
+void olderContact;
