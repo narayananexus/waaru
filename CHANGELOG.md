@@ -2,6 +2,8 @@
 
 ## Unreleased (publication withheld)
 
+- Align contact restoration with the additive API contract: exact archived lookup, revision-checked explicit restore, and archive/lifecycle-revision response types. Preserve legacy detail request options, active-only lists and upsert behavior.
+
 - Add revision-ordered message changes and campaign list/detail/recipient reads with bounded strict queries and no automatic retries or pagination.
 - Add template lifecycle filters, cached lifecycle and safe message-attribution types; preserve the legacy template-detail RequestOptions signature.
 - Add explicit boolean `observeAllOrigins` webhook saves; omission still follows the server default false.

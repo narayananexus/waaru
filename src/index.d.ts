@@ -342,6 +342,10 @@ export interface Conversation {
 export type CustomAttributeValue = string | number | boolean | null;
 
 export interface Contact {
+  /** Present on API releases supporting explicit contact restoration. */
+  archivedAt?: string | null;
+  /** Archive/restore lifecycle revision, not a profile-edit ETag; absent on older APIs. */
+  revision?: number;
   id: string;
   phoneE164: string;
   firstName: string | null;
@@ -377,7 +381,12 @@ export interface ContactUpsert {
   customAttributes?: Record<string, CustomAttributeValue>;
 }
 
-export type ContactPatch = Omit<ContactUpsert, "phoneE164">;
+export interface ContactDetailQuery { includeArchived?: QueryBoolean }
+
+export type ContactPatch = Omit<ContactUpsert, "phoneE164"> & (
+  | { restoreArchived: true; expectedRevision: number }
+  | { restoreArchived?: false; expectedRevision?: number }
+);
 
 export interface Label {
   id: string;
@@ -618,6 +627,7 @@ export class Waaru {
   readonly contacts: {
     list(query?: ContactQuery, options?: RequestOptions): Promise<Page<ContactRead>>;
     get(id: string, options?: RequestOptions): Promise<{ contact: ContactDetail }>;
+    get(id: string, query: ContactDetailQuery, options?: RequestOptions): Promise<{ contact: ContactDetail }>;
     upsert(body: ContactUpsert, options?: RequestOptions): Promise<{ contact: Contact }>;
     update(id: string, body: ContactPatch, options?: RequestOptions): Promise<{ contact: Contact }>;
     applyLabel(id: string, labelId: string, options?: RequestOptions): Promise<LabelChange>;
