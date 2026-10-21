@@ -12,6 +12,8 @@ Beta.5 retains beta.4's raw filter bounds and credential-shaped diagnostic filte
 
 SDK tests and packed ESM/CommonJS/TypeScript consumers verify local request mapping, response handling and package contents in hosted CI. These checks do not prove provider delivery, successful restoration or webhook mutation, or media availability. Fresh authenticated reads and expected rejection checks are required separately for release; valid writes and live sends are not part of that probe.
 
+The current probe also requires an existing contact to verify archive lifecycle fields, then confirms a synthetic missing ID is inaccessible before submitting a restore-shaped request against that same missing ID. This checks restoration parsing without restoring an actual contact. It is not evidence of a successful restoration or its downstream effects.
+
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
 | `instance.get` | `instance:read` | `GET /v1/developer/instance` |
