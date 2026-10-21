@@ -1,16 +1,18 @@
 # Developer API coverage
 
-This document describes the SDK surface introduced in `1.0.0-beta.3`. Use `npm install @waaru/sdk@beta` to select the newest prerelease. Earlier package versions do not expose the expanded methods below.
+This document describes `1.0.0-beta.5`: 36 Developer API operations and 15 scopes. Install with `npm install @waaru/sdk` or pin `@waaru/sdk@1.0.0-beta.5`; confirm the live distribution tags before upgrading.
 
-The published beta.4 baseline maps 32 Developer API operations and 14 scopes. Unreleased source maps 36 operations and 15 scopes against the current pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
+Beta.4 maps 32 operations and 14 scopes. Beta.5 adds message-change and campaign reads, template lifecycle options, explicit all-origin webhook observation and revision-checked contact restoration. The bundled [OpenAPI](../openapi/developer-openapi.json) describes the reviewed public interface, including the additive restoration schema. Its SHA-256 is `392dde45672f90c1455c026fd1818964a9e11933a186858131d1dfb3c911d3f7`. CI checks the operation map, schema regressions and installed contract bytes. API authority and provider eligibility are checked again at runtime.
 
 The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
 
-## Beta.4 security-fix verification
+## Release verification boundary
 
-Beta.4 packages the merged #8 filter-bound and diagnostic-metadata fixes without adding an endpoint, scope, retry or dependency. The owner approved publication on 16 October; its publication receipt remains historical. This unreleased source resets policy to `ready: false` and does not publish a package. Confirm the actual npm version and `beta` tag before installing. Beta.3 does not contain these fixes; callers using it must bound raw filters and redact diagnostic metadata.
+Beta.5 retains beta.4's raw filter bounds and credential-shaped diagnostic filtering. Beta.3 lacks those protections. The beta.5 publication gate remains held until fresh 36-operation backend acceptance and the required hosted CI checks pass; historical evidence is not relabeled as a current live check.
 
-Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regressions and packed ESM/CommonJS consumers), strict TypeScript and two injected client-console fixtures. A source comparison against monorepo `532fb9a03fc2bda37aa68d56849b96da51270762` matches all 32 operation IDs, methods, paths, success statuses and 14 scopes. The historical beta.3 probe above has not been relabeled as a beta.4 live test. Pinned schema bytes predate later backend projection/regex/count refinements; operation parity does not mean byte-identical schemas or prove deployed provider/media acceptance.
+SDK tests and packed ESM/CommonJS/TypeScript consumers verify local request mapping, response handling and package contents in hosted CI. These checks do not prove provider delivery, successful restoration or webhook mutation, or media availability. Fresh authenticated reads and expected rejection checks are required separately for release; valid writes and live sends are not part of that probe.
+
+The current probe also requires an existing contact to verify archive lifecycle fields, then confirms a synthetic missing ID is inaccessible before submitting a restore-shaped request against that same missing ID. This checks restoration parsing without restoring an actual contact. It is not evidence of a successful restoration or its downstream effects.
 
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
@@ -49,7 +51,7 @@ Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regr
 
 `messages.sendText` and `messages.sendTemplate` are convenience adapters over `messages.send`; they are not additional API operations. `verifyWebhook` is local cryptographic verification and does not make an HTTP request.
 
-## Unreleased observation contract
+## Observation contract
 
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
@@ -58,15 +60,13 @@ Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regr
 | `campaigns.get` | `campaigns:read` | `GET /v1/developer/campaigns/{id}` |
 | `campaigns.recipients` | `campaigns:read` | `GET /v1/developer/campaigns/{id}/recipients` |
 
-These methods are implemented in source and absent from the published beta.4
+These methods require beta.5 and are absent from the published beta.4
 artifact. `campaigns:read` requires an explicit authorized key edit; no automatic
 scope upgrade or sender override exists. All are GET reads and do not schedule,
-send, retarget, change handling mode or claim human ownership. Runtime contracts are traced at monorepo `7ee1607964ce18231cc4e825649c18ac91755b7f`.
-The exact OpenAPI bytes include its already-implemented detail query filters
-from [documentation correction #1574](https://github.com/tanaydpatel/waaru-monorepo/pull/1574),
-pinned by the fixture manifest documentation commit and checksum.
-The beta.3 authenticated receipt remains 32-operation historical evidence; new
-backend/provider acceptance and owner-approved publication remain release blockers.
+send, retarget, change handling mode or claim human ownership. The exact paths,
+filters and projections are pinned in the bundled OpenAPI contract. The beta.3
+authenticated receipt remains historical 32-operation evidence; it does not
+establish deployed support for these additional reads.
 
 `messages.changes({ after, limit }, options)` accepts opaque cursors up to 2048
 characters and limit 1 through 100. Bootstrap without `after`, then persist
@@ -124,11 +124,11 @@ Labels are the workspace tags exposed by this API. Creating or renaming a label 
 
 Contact `customAttributes` are partial scalar merges into registered workspace fields, subject to declared types, active definitions and the resulting per-contact limit. Set up definitions in Waaru before syncing. New unknown/archived keys or changed null values for typed fields can return `409 invalid_custom_attributes`; null does not remove an attribute. Basic contact fields such as firstName/email still accept null. Reads expose at most 25 scalar attributes and truncate strings to 500 characters, so never replace a stored record from the read projection.
 
-The unpublished source also supports the additive contact-restoration contract from [API PR #1579](https://github.com/tanaydpatel/waaru-monorepo/pull/1579). Use `contacts.get(id, { includeArchived: true }, options)` for exact lookup, then `contacts.update(id, { restoreArchived: true, expectedRevision: contact.revision, ...profileFields }, options)`. Exact lookup accepts boolean or exact `"true"`/`"false"` values; lists remain active-only. Legacy `contacts.get(id, options)` remains supported. Keep query fields and request options in separate arguments.
+Beta.5 supports the additive contact-restoration contract. Use `contacts.get(id, { includeArchived: true }, options)` for exact lookup, then `contacts.update(id, { restoreArchived: true, expectedRevision: contact.revision, ...profileFields }, options)`. Exact lookup accepts boolean or exact `"true"`/`"false"` values; lists remain active-only. `contacts.get(id, options)` remains supported. Keep query fields and request options in separate arguments.
 
 `Contact.archivedAt` is a nullable ISO timestamp; `Contact.revision` is a nonnegative archive/restore lifecycle revision, not a profile-edit ETag. Both fields are optional in SDK types because older API servers omit them; the matching restoration API returns both. Check presence before constructing a restore request; never invent a revision or infer active/archive state from an absent field. Explicit true restoration requires the reviewed revision even when a contact is already active. A revision alone or false-only request is not an update; omitted/false restoration retains active-only profile edits. A stale archived revision returns `409 contact_archive_changed`; active restoration is a no-op before revision comparison. Restoration and supplied profile changes are atomic server behavior, not multiple SDK calls. The SDK never retries automatically. Opt-outs, restrictions, history and previously removed segment memberships are not reset; upsert never restores. Current scopes and connected EXTERNAL_API write policy remain enforced by the server.
 
-Published `1.0.0-beta.4` and source before this supplement reject restoration fields and the archived-lookup option locally before HTTP; they preserve additive response fields but do not declare their types. Their existing profile update, active-only detail/list calls remain compatible with the additive server contract. These options require a future approved SDK publication and the matching deployed API. The package version is unchanged and release policy remains false; no registry publication or deployed acceptance is implied. The existing 36-operation snapshot and historical beta.3 release receipts are unchanged by this contract supplement.
+Beta.4 rejects restoration fields and the archived-lookup option locally before HTTP; it preserves additive response fields but does not declare their types. Use beta.5 or later and a matching deployed API for restoration. Ordinary profile updates and active-only reads keep their existing behavior. Restoration modifies the existing contact PATCH operation; it does not add a new endpoint or scope.
 
 CSV imports, catalog administration, custom-attribute removal, dynamic segments, key management, inbound-mode changes and broadcast scheduling are not API-key SDK endpoints. Use the dashboard's governed import for CSVs; a server sync can deliberately call `contacts.upsert` per record and handle failures individually, with no implicit batch/retry semantics. OAuth `/external/v1` integrations and reviewed OAuth MCP tools have separate credentials, grants and contracts.
 

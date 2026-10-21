@@ -11,10 +11,10 @@ const policy = { version: pkg.version, ready: true };
 const metadata = { versions: { '1.0.0-beta.2': {} }, 'dist-tags': { beta: '1.0.0-beta.2', latest: '1.0.0-beta.2' } };
 const fetch = async () => Response.json(metadata);
 
-test('unreleased observation source remains withheld before any registry request', async () => {
+test('release candidate remains withheld before backend acceptance and any registry request', async () => {
   const currentPackage = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
   const currentPolicy = JSON.parse(readFileSync(new URL('../.github/release-policy.json', import.meta.url)));
-  assert.equal(currentPackage.version, '1.0.0-beta.4');
+  assert.equal(currentPackage.version, '1.0.0-beta.5');
   assert.equal(currentPolicy.ready, false);
   const result = await publishCandidate({ pkg: currentPackage, policy: currentPolicy, fetch: async () => { throw new Error('No registry request while held'); } });
   assert.equal(result.publish, false);

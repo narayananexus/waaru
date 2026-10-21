@@ -6,32 +6,32 @@
 
 Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
 
-This guide describes `1.0.0-beta.4`, which includes #8's raw filter bounds and credential-shaped diagnostic filtering. The 32 Developer API operations were introduced in beta.3. Confirm publication with `npm view @waaru/sdk dist-tags` before installing; merged source alone does not prove a version is on npm. Beta.3 lacks these fixes, so callers using it must bound filters and redact diagnostic metadata. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
+This guide describes `1.0.0-beta.5`: 36 Developer API operations and 15 explicit scopes, including the security fixes introduced in beta.4. See [API coverage](docs/api-coverage.md) for methods and requirements, and the bundled [OpenAPI contract](openapi/developer-openapi.json) for exact request and response schemas. Check `npm view @waaru/sdk dist-tags` to confirm the published version; a merged change alone is not a publication receipt.
 
-## Unreleased observation source
+## New in beta.5
 
-Current source adds `messages.changes()`, `campaigns.list()`, `campaigns.get()` and
+Beta.5 adds `messages.changes()`, `campaigns.list()`, `campaigns.get()` and
 `campaigns.recipients()`, template lifecycle filters and explicit
 `webhooks.save({ ..., observeAllOrigins: true })`. It maps 36 Developer API
-operations and 15 scopes against the current pinned contract. These additions
-are **not in the published beta.4 tarball** and no new version is published by
-this change. Package/lockfile version remains beta.4 and release policy is held
-at `ready: false` until a separately approved release.
+operations and 15 scopes against the pinned contract. Exact archived contact
+lookup and revision-checked restoration are also supported. These additions
+require beta.5 or later; beta.4 contains the security fixes but not these methods
+or request options.
 
 Read-only observations can keep Logic Flow handling and inspect retained data
 with an authorized number-bound key. Sends still require connected
 `EXTERNAL_API` mode and current eligibility. Keys never gain scopes automatically;
 new campaign reads need an explicit `campaigns:read` grant from an authorized
 key manager. Observation does not assign conversations, resume campaigns or send.
-See [source coverage and recovery](docs/api-coverage.md#unreleased-observation-contract).
+See [observation coverage and recovery](docs/api-coverage.md#observation-contract).
 
 ## 1. Install
 
 ```sh
-npm install @waaru/sdk@beta
+npm install @waaru/sdk
 ```
 
-This is a beta release. Check `npm view @waaru/sdk dist-tags` before installing. Idempotency keys and the expanded resource methods below require `1.0.0-beta.3` or later. The `beta` tag selects the newest prerelease; an unqualified install selects `latest`.
+This is a beta release. An unqualified install selects `latest`; `@beta` selects the beta channel. To pin this guide's version, use `npm install @waaru/sdk@1.0.0-beta.5`. Check `npm view @waaru/sdk dist-tags` before upgrading.
 
 ## 2. Add your API key
 
@@ -132,12 +132,39 @@ Optional constructor settings: `apiKey`, `timeoutMs` (default 30 seconds), trust
 
 The SDK includes:
 
-- `messages.send/get`, `conversations.list/messages`, and `media.download`;
+- `messages.send/get/changes`, `conversations.list/messages`, and `media.download`;
 - `contacts`, `labels`, and static `segments` namespaces with workspace-wide scoped access;
-- `templates.list/get` and `reports.activity`;
+- `templates.list/get`, `campaigns.list/get/recipients`, and `reports.activity`;
 - revisioned `webhooks` management and local `verifyWebhook`.
 
 See the complete [method/scope matrix](docs/api-coverage.md), [contact sync recipe](docs/recipes/contact-sync.md), and [durable webhook receiver](docs/recipes/webhook-receiver.md). Media downloads return a streaming `Response`; consume or cancel the body. Contact projections are not lossless exports. Webhook secrets are returned only on creation/rotation and cannot be recovered automatically.
+
+### Read observations without sending
+
+```js
+const { instance, scopes } = await waaru.instance.get();
+const changes = await waaru.messages.changes({ limit: 50 });
+// Persist resumeCursor before reconciling retained history. Follow nextCursor,
+// even for empty pages, and commit each processed page durably.
+const campaigns = await waaru.campaigns.list({ limit: 50 });
+```
+
+These calls require their own read scopes; `campaigns:read` is not added to existing keys automatically. Read-only integrations need not switch inbound handling to Developer API mode. Mode selection in the setup above is for sending. The SDK does not auto-page, auto-retry, create keys or change grants.
+
+### Restore an archived contact deliberately
+
+```js
+const { contact } = await waaru.contacts.get(contactId, { includeArchived: true });
+if (typeof contact.archivedAt === 'string') {
+  if (!Number.isSafeInteger(contact.revision)) throw new Error('Review the current lifecycle revision');
+  await waaru.contacts.update(contact.id, {
+    restoreArchived: true,
+    expectedRevision: contact.revision,
+  });
+}
+```
+
+Restoration needs a matching deployed API and contact write scope. It preserves opt-outs and restrictions, does not restore removed segment memberships, and does not authorize message sends. Lists remain active-only; upsert never restores. A revision conflict requires a new review, not an automatic retry.
 
 No database, build step, or runtime dependencies are needed. For repository development: `npm ci && npm run verify`.
 
@@ -148,6 +175,8 @@ Every pull request is tested on the supported Node.js versions and against the p
 To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version in `.github/release-policy.json`. Keep `ready: false` until backend compatibility checks and explicit owner publication approval are complete. Then set `ready: true` in a reviewed PR. Merge after required CI passes, then have the repository owner approve the `npm` environment job in GitHub Actions. Publication follows successful CI for the current `main` commit. Tags and GitHub Releases do not independently trigger publication. No reusable npm write token is needed.
 
 The npm trusted publisher must specify organization `narayananexus`, repository `waaru`, workflow `publish.yml`, environment `npm`, and allow direct publishing. Leave a candidate at `ready: false` until its compatibility checks are complete. The workflow skips already published versions and records source and artifact integrity in its release summary.
+
+Publishing a prerelease to `beta` does not move `latest`. When the owner approves making that version the default installation, promote the already-published version with `npm dist-tag add @waaru/sdk@<version> latest` and verify `npm view @waaru/sdk dist-tags`. Do not republish or reuse a version to change tags.
 
 ## Contributing
 

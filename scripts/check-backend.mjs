@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { Waaru, WaaruApiError } from '../src/index.js';
+import { verifyContactRestoration } from './backend-capabilities.mjs';
 
 // Release compatibility probe: reads and deliberately rejected writes only.
-// No recipient, customer payload, callback target or valid write body is sent.
+// No recipient, customer profile or callback target is sent. The restore-shaped
+// rejection uses only a confirmed missing ID and never targets an existing row.
 const manifest = JSON.parse(readFileSync(new URL('../test/fixtures/api-contract-manifest.json', import.meta.url), 'utf8'));
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const client = new Waaru();
@@ -56,6 +58,7 @@ try {
   const contacts = await client.contacts.list({ limit: 1 });
   results.push({ operationId: 'listContacts', result: 'read_ok' });
   await check('getContact', () => client.contacts.get(contacts.items[0]?.id || missingId), contacts.items.length ? undefined : 404);
+  const capabilityChecks = await verifyContactRestoration(client, contacts.items[0]?.id, missingId);
   await check('listLabels', () => client.labels.list({ limit: 1 }));
   const segments = await client.segments.list({ limit: 1 });
   results.push({ operationId: 'listSegments', result: 'read_ok' });
@@ -89,7 +92,7 @@ try {
     apiOrigin: new URL(baseUrl).origin, openapiSha256: manifest.openapiSha256,
     operations: results.length, reads: results.filter(result => result.result === 'read_ok').length,
     expectedRejections: results.filter(result => result.result === 'expected_rejection').length,
-    liveSends: 0, validWrites: 0, results,
+    liveSends: 0, validWrites: 0, capabilityChecks, results,
   }, null, 2));
 } catch (error) {
   // Never print request/response payloads, credentials, customer IDs or causes.

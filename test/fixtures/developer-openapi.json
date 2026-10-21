@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Waaru Developer API",
-    "version": "2026-10-18",
+    "version": "2026-10-19",
     "description": "Source contract for this release; deployment requires release verification. Keys remain number-bound. Explicit workspace:* scopes cover shared workspace contacts/static segments. Scoped reads work alongside Logic Flow and for retained disconnected-number data, subject to lifecycle fences. Autonomous sends and workspace writes still require connected EXTERNAL_API handling. Callback management requires a connected number but grants no reply ownership. Every scope is explicit; existing keys gain none. Unknown input fields are rejected. Consent, sender identity, service windows, template freshness/quality, rate/backlog and human-priority rules remain authoritative."
   },
   "servers": [
@@ -1241,7 +1241,7 @@
       "get": {
         "operationId": "getContact",
         "summary": "get contact",
-        "description": "Requires workspace:contacts:read.",
+        "description": "Requires workspace:contacts:read. Active contacts by default. Explicit includeArchived=true on this exact-ID read exposes archivedAt and lifecycle revision for reviewed restoration; lists remain active-only.",
         "x-waaru-scope": "workspace:contacts:read",
         "parameters": [
           {
@@ -1253,6 +1253,16 @@
               "minLength": 1,
               "maxLength": 191
             }
+          },
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Explicit exact-contact archive lookup; returns archivedAt and revision for restoration."
           }
         ],
         "responses": {
@@ -1288,7 +1298,7 @@
       "patch": {
         "operationId": "updateContact",
         "summary": "update contact",
-        "description": "Requires workspace:contacts:write.",
+        "description": "Requires workspace:contacts:write. Update profile fields or explicitly restoreArchived:true with expectedRevision from an exact archived read. Omitted/false never restores; stale archived revision returns 409 contact_archive_changed. Restore and profile changes commit together without changing opt-outs, restrictions or history, or recreating removed segment memberships. Active restoration is a no-op before revision comparison; ordinary profile concurrency is unchanged.",
         "x-waaru-scope": "workspace:contacts:write",
         "parameters": [
           {
@@ -3802,6 +3812,23 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -3814,7 +3841,9 @@
           "locale",
           "customAttributes",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "archivedAt",
+          "revision"
         ],
         "additionalProperties": false
       },
@@ -3994,10 +4023,63 @@
                 }
               ]
             }
+          },
+          "restoreArchived": {
+            "type": "boolean"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
           }
         },
         "additionalProperties": false,
-        "minProperties": 1
+        "minProperties": 1,
+        "allOf": [
+          {
+            "anyOf": [
+              {
+                "required": ["firstName"]
+              },
+              {
+                "required": ["lastName"]
+              },
+              {
+                "required": ["email"]
+              },
+              {
+                "required": ["countryCode"]
+              },
+              {
+                "required": ["locale"]
+              },
+              {
+                "required": ["customAttributes"]
+              },
+              {
+                "required": ["restoreArchived"],
+                "properties": {
+                  "restoreArchived": {
+                    "const": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "if": {
+              "required": ["restoreArchived"],
+              "properties": {
+                "restoreArchived": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "required": ["expectedRevision"]
+            }
+          }
+        ]
       },
       "ContactRead": {
         "type": "object",
@@ -4086,6 +4168,23 @@
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
           },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
           "optedOut": {
             "type": "boolean"
           },
@@ -4110,6 +4209,8 @@
           "customAttributes",
           "createdAt",
           "updatedAt",
+          "archivedAt",
+          "revision",
           "optedOut"
         ],
         "additionalProperties": false

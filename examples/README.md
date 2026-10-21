@@ -1,5 +1,7 @@
 # Runnable template recipes
 
+Use beta.5 for the complete current SDK surface. See [API coverage](../docs/api-coverage.md) and the bundled [OpenAPI contract](../openapi/developer-openapi.json) for message changes, campaigns, template lifecycle filters and contact restoration. The recipes below focus on sending and deliberately do not run those write operations implicitly.
+
 These examples call real sends when run from the terminal. Use only an authorized test recipient and your own approved templates. The automated tests inject a mock transport; no provider request is made by `npm test`.
 
 From the repository, or after copying `template-recipes.mjs` into a project with `@waaru/sdk@beta` installed, create a server-only `.env`:
