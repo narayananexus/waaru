@@ -8,7 +8,7 @@ Use [Waaru documentation](https://www.waaru.app/docs) and the [npm package page]
 2. Create an instance-bound key with `messages:send`. Each sender needs its own key/client. Never use Meta credentials or a dashboard session token.
 3. Confirm the selected sender is connected and in Developer API mode. Switching changes inbound ownership away from Logic Flow and automatic replies; it is not only an API-key switch.
 4. Use a consented eligible recipient and an approved template matching the sender's WABA, name and language. Text requires the open customer-service window. Human ownership and safety restrictions can block sends.
-5. Check the installed version with `npm ls @waaru/sdk`. Install `@waaru/sdk@beta` for the current prerelease. Idempotency keys, resource methods and webhook verification require beta.3 or later; HTTP `outcomeUnknown` requires beta.2 or later.
+5. Check the installed version with `npm ls @waaru/sdk`. Beta.5 adds message changes, campaign reads, lifecycle inspection and explicit contact restoration; beta.4 includes the diagnostic and filter-bound security fixes. Confirm `npm view @waaru/sdk dist-tags` before upgrading.
 
 ## What did the send result mean?
 
@@ -30,6 +30,8 @@ The SDK never retries automatically. Persist one `idempotencyKey` per logical se
 | `insufficient_scope`, `api_key_not_allowed` | Use a key with the endpoint's declared scope; SDK methods do not override permissions. |
 | `idempotency_conflict` | Reconcile the original send. Reuse its original body and key; do not generate a new key to bypass the conflict. |
 | `revision_conflict` | Refresh `webhooks.get()`, review the current configuration and deliberately submit against its revision. Never automatically retry secret creation or rotation. |
+| `contact_archive_changed` | Read the exact contact with `includeArchived: true`, review its current archive state and lifecycle revision, then decide whether to restore. Do not retry the stale revision automatically. |
+| `invalid_cursor`, `cursor_expired` | For message changes, bootstrap again and reconcile retained history. Save `resumeCursor` before reconciliation; a cursor lease is not a history-retention guarantee. For other pages, keep the resource and filters unchanged and use the server's opaque cursor. |
 | `invalid_custom_attributes` | Match active workspace field definitions and types. Custom attributes merge; null does not remove a field. |
 | `resource_in_use` | Review active segment dependencies before archiving the label or segment. |
 | `template_action_unavailable`, `template_provider_unavailable` | Refresh `templates.get()` and its Form contract. Review provider availability and whether the Form requires an active Logic Flow. |
@@ -44,6 +46,12 @@ The SDK never retries automatically. Persist one `idempotencyKey` per logical se
 | `http_error`, timeout, non-JSON gateway error | Keep the outcome uncertain, capture safe diagnostics, and reconcile before resending. |
 
 If the hostname does not resolve or documentation returns 404, this is a service/docs availability issue, not evidence that your template was rejected. Do not switch to a guessed staging host or disable TLS. `baseUrl`/`WAARU_BASE_URL` must be an explicit trusted origin approved for your environment.
+
+## Read-only integration checks
+
+Use `instance.get()` to inspect the bound number and explicit scopes. Read-only observations can coexist with Logic Flow and permitted retained disconnected-number data; they do not grant sending authority. Existing keys do not gain `campaigns:read` automatically. Ask an authorized workspace key manager for the smallest required scope set rather than switching mode or using a broader credential to hide a rejection.
+
+Message-change pages can be empty while still returning `nextCursor`; continue that cursor and commit each processed page durably. Keep revision values as decimal strings. Do not treat incremental occurrence-time message filters as a delivery-status change feed. See [observation recovery](docs/api-coverage.md#observation-contract) and the bundled [OpenAPI](openapi/developer-openapi.json).
 
 ## Safe support information
 

@@ -1,9 +1,8 @@
 {
-  "openapiSha256": "d4347d14bde440bec5347eadd4655326f0080a8bfb9debad982d3aff1db7d7da",
+  "openapiSha256": "392dde45672f90c1455c026fd1818964a9e11933a186858131d1dfb3c911d3f7",
   "contactReadStatus": "verified_by_authenticated_release_probe",
   "releaseBlockers": [
-    "fresh_36_operation_backend_acceptance",
-    "new_version_and_owner_publication_approval"
+    "fresh_36_operation_backend_acceptance"
   ],
   "releaseVerification": {
     "checkedAt": "2026-10-09T11:34:54.414Z",
@@ -315,8 +314,7 @@
     "operationCount": 36,
     "scopeCount": 15,
     "acceptance": "source_and_synthetic_only",
-    "runtimeCommit": "7ee1607964ce18231cc4e825649c18ac91755b7f",
-    "documentationCommit": "f68d2605ce390d19dad838a01289f62bf8342ca0",
-    "documentationPullRequest": "https://github.com/tanaydpatel/waaru-monorepo/pull/1574"
+    "runtimeCommit": "26503949ff1da00a1bee8a1563fd0bcd4e102cd6",
+    "documentationCommit": "26503949ff1da00a1bee8a1563fd0bcd4e102cd6"
   }
 }

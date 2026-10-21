@@ -1,12 +1,12 @@
 {
   "name": "@waaru/sdk",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0-beta.5",
   "description": "Server SDK for messaging and scoped Developer API resources through Waaru",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "exports": { ".": { "types": "./src/index.d.ts", "default": "./src/index.js" } },
-  "files": ["src", "examples", "docs/api-coverage.md", "docs/recipes", "CHANGELOG.md", "SECURITY.md", "TROUBLESHOOTING.md"],
+  "files": ["src", "examples", "openapi/developer-openapi.json", "docs/api-coverage.md", "docs/recipes", "CHANGELOG.md", "SECURITY.md", "TROUBLESHOOTING.md"],
   "homepage": "https://www.waaru.app/docs",
   "repository": {
     "type": "git",

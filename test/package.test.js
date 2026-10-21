@@ -21,6 +21,7 @@ test("packed artifact installs and runs as ESM and CommonJS without dependencies
     'LICENSE',
     'SECURITY.md',
     'TROUBLESHOOTING.md',
+    'openapi/developer-openapi.json',
     'examples/README.md',
     'examples/template-recipes.mjs',
     'examples/receive-webhook.mjs',
@@ -74,6 +75,11 @@ await reads.webhooks.save({revision:1,selectedEvents:['MESSAGE_RECEIVED'],observ
   );
   const manifest = JSON.parse(
     readFileSync(join(dir, "node_modules/@waaru/sdk/package.json"), "utf8"),
+  );
+  assert.equal(
+    readFileSync(join(dir, "node_modules/@waaru/sdk/openapi/developer-openapi.json"), "utf8"),
+    readFileSync("test/fixtures/developer-openapi.json", "utf8"),
+    "the installed public contract must match the tested fixture byte for byte",
   );
   assert.equal(manifest.dependencies, undefined);
   assert.equal(

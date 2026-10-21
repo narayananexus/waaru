@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (publication withheld)
+## 1.0.0-beta.5 - 2026-10-22
 
 - Align contact restoration with the additive API contract: exact archived lookup, revision-checked explicit restore, and archive/lifecycle-revision response types. Preserve legacy detail request options, active-only lists and upsert behavior.
 
@@ -8,7 +8,9 @@
 - Add template lifecycle filters, cached lifecycle and safe message-attribution types; preserve the legacy template-detail RequestOptions signature.
 - Add explicit boolean `observeAllOrigins` webhook saves; omission still follows the server default false.
 - Pin the 36-operation/15-scope source contract separately from historical beta.3 live receipts and published beta.4. Require seconds in qualified timestamp filters to match current REST validation.
-- Preserve number-bound authority and SDK security/transport behavior. Hold release policy false without changing package or lockfile versions, publishing, credentials or distribution tags.
+- Bundle the current OpenAPI 3.1.1 contract, including archived-contact lookup and restoration constraints; verify its bytes against the pinned fixture and packed consumer.
+- Refresh the README, coverage and contact-sync guidance for beta.5 and distinguish published versions from historical compatibility evidence.
+- Preserve number-bound authority, all beta.4 security fixes, zero runtime dependencies and zero automatic retries. Publication remains gated on fresh backend compatibility and owner approval.
 
 ## 1.0.0-beta.4 - 2026-10-16
 
