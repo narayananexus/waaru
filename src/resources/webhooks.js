@@ -42,7 +42,8 @@ function callbackUrl(value) {
 }
 
 function webhookWrite(body) {
-  object(body, ["revision", "callbackUrl", "selectedEvents"], "Webhook configuration");
+  object(body, ["revision", "callbackUrl", "selectedEvents", "observeAllOrigins"], "Webhook configuration");
+  if (body.observeAllOrigins !== undefined) check(typeof body.observeAllOrigins === "boolean", "observeAllOrigins must be boolean.");
   revision(body.revision, { nullable: true });
   check(
     Array.isArray(body.selectedEvents) &&

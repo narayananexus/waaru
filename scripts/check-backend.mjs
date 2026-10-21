@@ -73,6 +73,12 @@ try {
   await check('downloadMedia', () => client.media.download(missingId), 404);
   await check('getActivity', () => client.reports.activity());
   await check('getWebhook', () => client.webhooks.get());
+  await check('listMessageChanges', () => client.messages.changes({ limit: 1 }));
+  const campaigns = await client.campaigns.list({ limit: 1 });
+  results.push({ operationId: 'listCampaigns', result: 'read_ok' });
+  const campaignId = campaigns.items[0]?.id || missingId;
+  await check('getCampaign', () => client.campaigns.get(campaignId), campaigns.items.length ? undefined : 404);
+  await check('listCampaignRecipients', () => client.campaigns.recipients(campaignId, { limit: 1 }), campaigns.items.length ? undefined : 404);
   for (const operation of manifest.operations.filter(operation => operation.method !== 'GET')) await rejectWrite(operation);
   const checked = new Set(results.map(result => result.operationId));
   if (checked.size !== manifest.operations.length || manifest.operations.some(operation => !checked.has(operation.operationId))) {

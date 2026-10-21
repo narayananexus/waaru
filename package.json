@@ -1,6 +1,6 @@
 {
   "name": "@waaru/sdk",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "Server SDK for messaging and scoped Developer API resources through Waaru",
   "type": "module",
   "main": "./src/index.js",

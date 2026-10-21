@@ -9,7 +9,7 @@ import {
   template,
 } from "../validation.js";
 import { getResponseRequestId } from "../transport.js";
-import { responseObject } from "./helpers.js";
+import { pageQuery, responseCheck, responseObject, responsePage } from "./helpers.js";
 
 function envelope(body, payloadKey) {
   object(
@@ -281,5 +281,13 @@ export function createMessages(request) {
     return responseObject(data, "message", "message");
   };
 
-  return Object.freeze({ send, sendText, sendTemplate, get });
+  const changes = async (query = {}, options) => {
+    const built = pageQuery(query, [], "Message changes query", 2048);
+    const data = responsePage(await request({ method: "GET", path: "/v1/messages/changes", query: built, options, expectedStatus: 200 }), "message changes");
+    return responseCheck(data,
+      data.items.length <= 100 && typeof data.resumeCursor === "string" && data.history === "retained_only",
+      "message changes");
+  };
+
+  return Object.freeze({ send, sendText, sendTemplate, get, changes });
 }

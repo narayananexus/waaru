@@ -6,7 +6,24 @@
 
 Use Waaru's server-side Developer API through typed Node.js functions. Includes TypeScript declarations, zero runtime dependencies and Node.js 22.14+ support.
 
-This guide describes `1.0.0-beta.3`, which covers 32 Developer API operations. Earlier versions support text and template sending only. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
+This guide describes `1.0.0-beta.4`, which includes #8's raw filter bounds and credential-shaped diagnostic filtering. The 32 Developer API operations were introduced in beta.3. Confirm publication with `npm view @waaru/sdk dist-tags` before installing; merged source alone does not prove a version is on npm. Beta.3 lacks these fixes, so callers using it must bound filters and redact diagnostic metadata. See [API coverage](docs/api-coverage.md) for methods, scopes and runtime requirements.
+
+## Unreleased observation source
+
+Current source adds `messages.changes()`, `campaigns.list()`, `campaigns.get()` and
+`campaigns.recipients()`, template lifecycle filters and explicit
+`webhooks.save({ ..., observeAllOrigins: true })`. It maps 36 Developer API
+operations and 15 scopes against the current pinned contract. These additions
+are **not in the published beta.4 tarball** and no new version is published by
+this change. Package/lockfile version remains beta.4 and release policy is held
+at `ready: false` until a separately approved release.
+
+Read-only observations can keep Logic Flow handling and inspect retained data
+with an authorized number-bound key. Sends still require connected
+`EXTERNAL_API` mode and current eligibility. Keys never gain scopes automatically;
+new campaign reads need an explicit `campaigns:read` grant from an authorized
+key manager. Observation does not assign conversations, resume campaigns or send.
+See [source coverage and recovery](docs/api-coverage.md#unreleased-observation-contract).
 
 ## 1. Install
 
@@ -128,7 +145,7 @@ No database, build step, or runtime dependencies are needed. For repository deve
 
 Every pull request is tested on the supported Node.js versions and against the packed npm artifact. After CI passes on `main`, new versions marked ready in `.github/release-policy.json` publish automatically through npm Trusted Publishing. Existing versions are skipped. Prereleases use the `beta` tag; stable releases use `latest`. npm provenance links published package bytes to the public source and workflow.
 
-To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version with `ready: true` in `.github/release-policy.json` after backend compatibility checks. Merge that release PR after required CI passes, then have the repository owner approve the `npm` environment job in GitHub Actions. Publication follows successful CI for the current `main` commit. Tags and GitHub Releases do not independently trigger publication. No reusable npm write token is needed.
+To prepare a release, update `package.json` and `package-lock.json` to the new version, update the changelog, and set the same version in `.github/release-policy.json`. Keep `ready: false` until backend compatibility checks and explicit owner publication approval are complete. Then set `ready: true` in a reviewed PR. Merge after required CI passes, then have the repository owner approve the `npm` environment job in GitHub Actions. Publication follows successful CI for the current `main` commit. Tags and GitHub Releases do not independently trigger publication. No reusable npm write token is needed.
 
 The npm trusted publisher must specify organization `narayananexus`, repository `waaru`, workflow `publish.yml`, environment `npm`, and allow direct publishing. Leave a candidate at `ready: false` until its compatibility checks are complete. The workflow skips already published versions and records source and artifact integrity in its release summary.
 

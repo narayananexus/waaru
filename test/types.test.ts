@@ -97,3 +97,65 @@ client.messages.sendTemplate({ to: '+14155552671', name: 'form', language: 'en_U
 client.instance.get({ instanceId: 'foreign' });
 // @ts-expect-error new resource methods do not administer grants
 client.labels.create({ name: 'A', scopes: ['workspace:labels:manage'] });
+
+client.messages.changes({ after: "opaque", limit: 100 }).then(page => {
+  const revision: string = page.items[0].revision;
+  const status: Message["status"] | null = page.items[0].status;
+  const history: "retained_only" = page.history;
+  const cursor: string = page.resumeCursor;
+  void revision; void status; void history; void cursor;
+});
+client.campaigns.list({ status: "PAUSED" });
+client.campaigns.get("campaign-a").then(page => {
+  const count: number | undefined = page.campaign.failureCohorts.PERMANENT_BOUNCE;
+  void count;
+});
+client.campaigns.recipients("campaign-a", { settlementState: "UNCERTAIN", retargetEligible: false });
+client.templates.list({ status: "PENDING", category: "UTILITY", includeUnavailable: true });
+client.templates.get("template-a", { includeUnavailable: true }, { requestId: "safe" });
+client.templates.get("template-a", { timeoutMs: 1000 });
+client.messages.get("message-a").then(page => { const campaign: string | null = page.message.attribution.campaignId; void campaign; });
+client.webhooks.save({ revision: 1, selectedEvents: ["MESSAGE_RECEIVED"], observeAllOrigins: true });
+// @ts-expect-error no sender override on observation
+client.messages.changes({ instanceId: "foreign" });
+// @ts-expect-error campaign reads do not schedule or send
+client.campaigns.schedule("campaign-a");
+// @ts-expect-error closed campaign statuses
+client.campaigns.list({ status: "UNKNOWN" });
+// @ts-expect-error webhooks boolean is not a string
+client.webhooks.save({ revision: 1, selectedEvents: ["MESSAGE_RECEIVED"], observeAllOrigins: "true" });
+// @ts-expect-error template details only expose documented lifecycle query fields
+client.templates.get("template-a", { includeUnavailable: true, instanceId: "foreign" });
+
+client.templates.get("template-a", { name: "order_update", language: "en", category: "UTILITY" });
+
+
+// Unpublished contact restore contract; legacy RequestOptions remains accepted.
+client.contacts.get("contact-1", { includeArchived: true }, { requestId: "restore-read" }).then(({ contact }) => {
+  const archivedAt: string | null | undefined = contact.archivedAt;
+  const revision: number | undefined = contact.revision;
+  if (typeof contact.revision === "number") {
+    client.contacts.update(contact.id, { restoreArchived: true, expectedRevision: contact.revision });
+  }
+  void archivedAt; void revision;
+});
+client.contacts.get("contact-1", { includeArchived: "false" });
+client.contacts.get("contact-1", { timeoutMs: 1000, signal: new AbortController().signal });
+client.contacts.update("contact-1", { restoreArchived: true, expectedRevision: 0, email: null });
+client.contacts.update("contact-1", { restoreArchived: false, firstName: "Ada" });
+// @ts-expect-error restoration requires a reviewed lifecycle revision
+client.contacts.update("contact-1", { restoreArchived: true });
+// @ts-expect-error exact query flags cannot be ambiguous strings
+client.contacts.get("contact-1", { includeArchived: "yes" });
+// @ts-expect-error archive lookup is unavailable on contact lists
+client.contacts.list({ includeArchived: true });
+// @ts-expect-error upsert never restores archived contacts
+client.contacts.upsert({ phoneE164: "+14155552671", restoreArchived: true, expectedRevision: 0 });
+
+// Existing consumer-created Contact projections remain assignable.
+const olderContact: Contact = {
+  id: "contact-1", phoneE164: "+14155552671", firstName: null, lastName: null,
+  email: null, countryCode: null, locale: null, customAttributes: {},
+  createdAt: "2026-10-19T00:00:00Z", updatedAt: "2026-10-19T00:00:00Z",
+};
+void olderContact;

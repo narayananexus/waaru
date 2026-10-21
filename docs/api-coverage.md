@@ -2,9 +2,15 @@
 
 This document describes the SDK surface introduced in `1.0.0-beta.3`. Use `npm install @waaru/sdk@beta` to select the newest prerelease. Earlier package versions do not expose the expanded methods below.
 
-The SDK maps 32 Developer API operations and 14 scopes against a pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
+The published beta.4 baseline maps 32 Developer API operations and 14 scopes. Unreleased source maps 36 operations and 15 scopes against the current pinned OpenAPI contract. The fixture checksum records the reviewed public interface. Every release requires backend compatibility checks as well as SDK and package-consumer CI; API access and provider eligibility are checked again at runtime.
 
 The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
+
+## Beta.4 security-fix verification
+
+Beta.4 packages the merged #8 filter-bound and diagnostic-metadata fixes without adding an endpoint, scope, retry or dependency. The owner approved publication on 16 October; its publication receipt remains historical. This unreleased source resets policy to `ready: false` and does not publish a package. Confirm the actual npm version and `beta` tag before installing. Beta.3 does not contain these fixes; callers using it must bound raw filters and redact diagnostic metadata.
+
+Local Node 24.11.0 verification passes 103 SDK tests (including 22 security regressions and packed ESM/CommonJS consumers), strict TypeScript and two injected client-console fixtures. A source comparison against monorepo `532fb9a03fc2bda37aa68d56849b96da51270762` matches all 32 operation IDs, methods, paths, success statuses and 14 scopes. The historical beta.3 probe above has not been relabeled as a beta.4 live test. Pinned schema bytes predate later backend projection/regex/count refinements; operation parity does not mean byte-identical schemas or prove deployed provider/media acceptance.
 
 | SDK method | Scope | HTTP operation |
 | --- | --- | --- |
@@ -43,9 +49,63 @@ The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 success
 
 `messages.sendText` and `messages.sendTemplate` are convenience adapters over `messages.send`; they are not additional API operations. `verifyWebhook` is local cryptographic verification and does not make an HTTP request.
 
+## Unreleased observation contract
+
+| SDK method | Scope | HTTP operation |
+| --- | --- | --- |
+| `messages.changes` | `messages:read` | `GET /v1/messages/changes` |
+| `campaigns.list` | `campaigns:read` | `GET /v1/developer/campaigns` |
+| `campaigns.get` | `campaigns:read` | `GET /v1/developer/campaigns/{id}` |
+| `campaigns.recipients` | `campaigns:read` | `GET /v1/developer/campaigns/{id}/recipients` |
+
+These methods are implemented in source and absent from the published beta.4
+artifact. `campaigns:read` requires an explicit authorized key edit; no automatic
+scope upgrade or sender override exists. All are GET reads and do not schedule,
+send, retarget, change handling mode or claim human ownership. Runtime contracts are traced at monorepo `7ee1607964ce18231cc4e825649c18ac91755b7f`.
+The exact OpenAPI bytes include its already-implemented detail query filters
+from [documentation correction #1574](https://github.com/tanaydpatel/waaru-monorepo/pull/1574),
+pinned by the fixture manifest documentation commit and checksum.
+The beta.3 authenticated receipt remains 32-operation historical evidence; new
+backend/provider acceptance and owner-approved publication remain release blockers.
+
+`messages.changes({ after, limit }, options)` accepts opaque cursors up to 2048
+characters and limit 1 through 100. Bootstrap without `after`, then persist
+`resumeCursor` **before** reconciling retained message history. Continue
+`nextCursor` even on empty pages, commit each page durably, then save its
+`resumeCursor`. Revisions are decimal strings and can exceed JavaScript's safe
+integer range; never convert them to numbers. Outbound creation status may be
+null. Dedupe by change ID and use current message reads for current status.
+`history: "retained_only"` makes no permanent-history or tombstone promise. On
+400 `invalid_cursor` or 410 `cursor_expired`, bootstrap and reconcile again.
+Every cursor has a seven-day lease, not a seven-day retention guarantee.
+
+Campaign pages use limit 1 through 100 and opaque `after` cursors up to 512
+characters. Keep resource/parent/filter identity stable; these are current-state
+pages rather than snapshots. `recipients` accepts closed status,
+settlementState, failureClass and retargetEligible (boolean or exact true/false
+string) filters. Responses expose safe public cohorts and outcomes, not phones,
+provider IDs, rendered variables or diagnostics. Foreign/sibling/missing IDs
+remain server-rejected; IDs are encoded within a fixed path.
+
+Template list and detail support exact name/language/category plus status/includeUnavailable. Detail accepts
+`templates.get(id, { status, includeUnavailable }, options)` while
+`templates.get(id, options)` stays compatible. Default inspection is approved
+and not provider-missing; lifecycle inspection does not authorize sending.
+Types include lifecycle timestamps/reasons and safe message attribution.
+
+Webhook `save` now accepts boolean `observeAllOrigins`. Set it explicitly on
+**every save** to retain all-origin observation; omission writes false on the
+current server. The SDK does not silently read-modify-write or retry a revision
+conflict. Signing credentials and endpoint control remain governed by existing
+webhook scopes. This is not an OAuth/MCP client or a grant-management SDK.
+
+All new calls use existing deadlines, safe diagnostics and zero automatic
+retries. Return page envelopes unchanged; no unbounded all-pages collector is
+added. Real backend/DB/provider/device/browser acceptance remains separate.
+
 ## Important behavior
 
-- API keys are server secrets bound to one number. Operations require an active workspace and connected `EXTERNAL_API` number, except `instance.get`, which also diagnoses disconnected or non-API-managed numbers. No method accepts a sender/instance override. `apiAvailable` does not imply send scope, quality, consent, service-window or ownership eligibility.
+- API keys are server secrets bound to one number. Current observations require an active workspace and live authorized key/number; permitted retained reads work in either handling mode and after disconnection. Sends and workspace mutations still require connected `EXTERNAL_API`; webhook administration requires connected status. `instance.get` diagnoses lifecycle/mode without granting send eligibility. No method accepts a sender/instance override. `apiAvailable` does not imply send scope, quality, consent, service-window or ownership eligibility.
 - Workspace contact/label/segment scopes intentionally cover the workspace, not only the bound number.
 - The SDK performs zero automatic retries. Persist one `idempotencyKey` before a logical send and reuse the identical body/key during deliberate reconciliation.
 - `requestId` is correlation only. It does not suppress duplicates.
@@ -60,9 +120,15 @@ The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 success
 
 Existing keys do not gain new scopes automatically. Ask an authorized workspace administrator to grant the required scopes in Settings; the SDK cannot create keys, elevate grants or switch inbound mode. Every request rechecks current authority. Reads share key/number/workspace budgets, and writes have separate shared limits; 429 and fail-closed 503 responses expose retry guidance without triggering SDK retries.
 
-Labels are the workspace tags exposed by this API. Creating or renaming a label validates its NFKC-normalized, trimmed, whitespace-collapsed name (1–48 characters) and the 4 KiB JSON body. System labels cannot be renamed or archived. Archiving retains history and reserves the name; active segment dependencies can return `409 resource_in_use`. Static segment updates accept name and/or description; `description: ""` clears it. The SDK translates `description: null` to `""` in create/update to preserve its existing convenience input. Management responses include `archivedAt`; list/get responses retain their established shapes. Restoration and permanent deletion are unavailable through these public operations.
+Labels are the workspace tags exposed by this API. Creating or renaming a label validates its NFKC-normalized, trimmed, whitespace-collapsed name (1–48 characters) and the 4 KiB JSON body. System labels cannot be renamed or archived. Archiving retains history and reserves the name; active segment dependencies can return `409 resource_in_use`. Static segment updates accept name and/or description; `description: ""` clears it. The SDK translates `description: null` to `""` in create/update to preserve its existing convenience input. Management responses include `archivedAt`; list/get responses retain their established shapes. Label/static-segment restoration and permanent deletion are unavailable through these public operations.
 
 Contact `customAttributes` are partial scalar merges into registered workspace fields, subject to declared types, active definitions and the resulting per-contact limit. Set up definitions in Waaru before syncing. New unknown/archived keys or changed null values for typed fields can return `409 invalid_custom_attributes`; null does not remove an attribute. Basic contact fields such as firstName/email still accept null. Reads expose at most 25 scalar attributes and truncate strings to 500 characters, so never replace a stored record from the read projection.
+
+The unpublished source also supports the additive contact-restoration contract from [API PR #1579](https://github.com/tanaydpatel/waaru-monorepo/pull/1579). Use `contacts.get(id, { includeArchived: true }, options)` for exact lookup, then `contacts.update(id, { restoreArchived: true, expectedRevision: contact.revision, ...profileFields }, options)`. Exact lookup accepts boolean or exact `"true"`/`"false"` values; lists remain active-only. Legacy `contacts.get(id, options)` remains supported. Keep query fields and request options in separate arguments.
+
+`Contact.archivedAt` is a nullable ISO timestamp; `Contact.revision` is a nonnegative archive/restore lifecycle revision, not a profile-edit ETag. Both fields are optional in SDK types because older API servers omit them; the matching restoration API returns both. Check presence before constructing a restore request; never invent a revision or infer active/archive state from an absent field. Explicit true restoration requires the reviewed revision even when a contact is already active. A revision alone or false-only request is not an update; omitted/false restoration retains active-only profile edits. A stale archived revision returns `409 contact_archive_changed`; active restoration is a no-op before revision comparison. Restoration and supplied profile changes are atomic server behavior, not multiple SDK calls. The SDK never retries automatically. Opt-outs, restrictions, history and previously removed segment memberships are not reset; upsert never restores. Current scopes and connected EXTERNAL_API write policy remain enforced by the server.
+
+Published `1.0.0-beta.4` and source before this supplement reject restoration fields and the archived-lookup option locally before HTTP; they preserve additive response fields but do not declare their types. Their existing profile update, active-only detail/list calls remain compatible with the additive server contract. These options require a future approved SDK publication and the matching deployed API. The package version is unchanged and release policy remains false; no registry publication or deployed acceptance is implied. The existing 36-operation snapshot and historical beta.3 release receipts are unchanged by this contract supplement.
 
 CSV imports, catalog administration, custom-attribute removal, dynamic segments, key management, inbound-mode changes and broadcast scheduling are not API-key SDK endpoints. Use the dashboard's governed import for CSVs; a server sync can deliberately call `contacts.upsert` per record and handle failures individually, with no implicit batch/retry semantics. OAuth `/external/v1` integrations and reviewed OAuth MCP tools have separate credentials, grants and contracts.
 

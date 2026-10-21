@@ -29,9 +29,9 @@ function operations(document) {
 
 test("pins the reviewed OpenAPI bytes and maps every operation exactly once", () => {
   assert.equal(createHash("sha256").update(openapiBytes).digest("hex"), manifest.openapiSha256);
-  assert.equal(manifest.operations.length, 32);
-  assert.equal(new Set(manifest.operations.map((item) => item.operationId)).size, 32);
-  assert.equal(new Set(manifest.operations.map((item) => item.sdk)).size, 32);
+  assert.equal(manifest.operations.length, 36);
+  assert.equal(new Set(manifest.operations.map((item) => item.operationId)).size, 36);
+  assert.equal(new Set(manifest.operations.map((item) => item.sdk)).size, 36);
   const expected = manifest.operations
     .map(({ sdk, ...operation }) => operation)
     .sort((a, b) => a.operationId.localeCompare(b.operationId));
@@ -55,9 +55,9 @@ test("pinned schemas cover all send variants and repaired contact response shape
   assert.ok(JSON.stringify(detail).includes("#/components/schemas/ContactRead"));
   assert.ok(openapi.components.schemas.ContactRead.properties.labelIds);
   assert.equal(manifest.contactReadStatus, "verified_by_authenticated_release_probe");
-  assert.deepEqual(manifest.releaseBlockers, []);
+  assert.deepEqual(manifest.releaseBlockers, ["fresh_36_operation_backend_acceptance", "new_version_and_owner_publication_approval"]);
   assert.equal(manifest.releaseVerification.version, "1.0.0-beta.3");
-  assert.equal(manifest.releaseVerification.operations, manifest.operations.length);
+  assert.equal(manifest.releaseVerification.operations, manifest.publishedBaseline.operationCount);
   assert.equal(manifest.releaseVerification.reads + manifest.releaseVerification.expectedRejections, 32);
   assert.equal(manifest.releaseVerification.liveSends, 0);
   assert.equal(manifest.releaseVerification.validWrites, 0);

@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased (publication withheld)
+
+- Align contact restoration with the additive API contract: exact archived lookup, revision-checked explicit restore, and archive/lifecycle-revision response types. Preserve legacy detail request options, active-only lists and upsert behavior.
+
+- Add revision-ordered message changes and campaign list/detail/recipient reads with bounded strict queries and no automatic retries or pagination.
+- Add template lifecycle filters, cached lifecycle and safe message-attribution types; preserve the legacy template-detail RequestOptions signature.
+- Add explicit boolean `observeAllOrigins` webhook saves; omission still follows the server default false.
+- Pin the 36-operation/15-scope source contract separately from historical beta.3 live receipts and published beta.4. Require seconds in qualified timestamp filters to match current REST validation.
+- Preserve number-bound authority and SDK security/transport behavior. Hold release policy false without changing package or lockfile versions, publishing, credentials or distribution tags.
+
+## 1.0.0-beta.4 - 2026-10-16
+
+- Reject overlong raw whitespace-padded contact/conversation/template filters and segment names before dispatch.
+- Reject credential-shaped upstream error codes and correlation IDs, including embedded values and case variants. Preserve safe secondary-header/caller correlation fallbacks.
+- Include the 22 synthetic security regressions from #8. No endpoint, scope, provider, retry or dependency changes.
+- Owner-approved publication uses the protected workflow and `beta` tag. Verify registry availability before installing; beta.3 does not contain these fixes.
+
 ## 1.0.0-beta.3 — 2026-10-09
 
 - Cover 32 Developer API operations and 14 scopes with typed resource namespaces, including instance discovery, contacts, labels, static segments, conversations, templates, reports and webhook management.

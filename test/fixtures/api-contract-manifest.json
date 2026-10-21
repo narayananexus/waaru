@@ -1,7 +1,10 @@
 {
-  "openapiSha256": "0ce39233d77d635a43490d453a056ab43b31400562bc1a262814f838257fea41",
+  "openapiSha256": "d4347d14bde440bec5347eadd4655326f0080a8bfb9debad982d3aff1db7d7da",
   "contactReadStatus": "verified_by_authenticated_release_probe",
-  "releaseBlockers": [],
+  "releaseBlockers": [
+    "fresh_36_operation_backend_acceptance",
+    "new_version_and_owner_publication_approval"
+  ],
   "releaseVerification": {
     "checkedAt": "2026-10-09T11:34:54.414Z",
     "version": "1.0.0-beta.3",
@@ -12,6 +15,38 @@
     "validWrites": 0
   },
   "operations": [
+    {
+      "operationId": "listMessageChanges",
+      "method": "GET",
+      "path": "/v1/messages/changes",
+      "scope": "messages:read",
+      "status": 200,
+      "sdk": "messages.changes"
+    },
+    {
+      "operationId": "listCampaigns",
+      "method": "GET",
+      "path": "/v1/developer/campaigns",
+      "scope": "campaigns:read",
+      "status": 200,
+      "sdk": "campaigns.list"
+    },
+    {
+      "operationId": "getCampaign",
+      "method": "GET",
+      "path": "/v1/developer/campaigns/{id}",
+      "scope": "campaigns:read",
+      "status": 200,
+      "sdk": "campaigns.get"
+    },
+    {
+      "operationId": "listCampaignRecipients",
+      "method": "GET",
+      "path": "/v1/developer/campaigns/{id}/recipients",
+      "scope": "campaigns:read",
+      "status": 200,
+      "sdk": "campaigns.recipients"
+    },
     {
       "operationId": "getInstance",
       "method": "GET",
@@ -268,5 +303,20 @@
       "status": 200,
       "sdk": "webhooks.setState"
     }
-  ]
+  ],
+  "publishedBaseline": {
+    "version": "1.0.0-beta.4",
+    "operationCount": 32,
+    "scopeCount": 14,
+    "openapiSha256": "0ce39233d77d635a43490d453a056ab43b31400562bc1a262814f838257fea41"
+  },
+  "sourceBaseline": {
+    "repository": "tanaydpatel/waaru-monorepo",
+    "operationCount": 36,
+    "scopeCount": 15,
+    "acceptance": "source_and_synthetic_only",
+    "runtimeCommit": "7ee1607964ce18231cc4e825649c18ac91755b7f",
+    "documentationCommit": "f68d2605ce390d19dad838a01289f62bf8342ca0",
+    "documentationPullRequest": "https://github.com/tanaydpatel/waaru-monorepo/pull/1574"
+  }
 }

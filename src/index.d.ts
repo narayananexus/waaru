@@ -199,6 +199,14 @@ export type SendMessage =
   | LocationSendMessage
   | ContactsSendMessage;
 
+export interface MessageAttribution {
+  source: "meta_webhook" | "agent" | "api" | "logic_flow" | "automation" | "ai_agent" | "broadcast" | "coexistence_sync" | "system" | "unknown";
+  actorKind: "contact" | "user" | "logic_flow" | "automation" | "ai_agent" | "broadcast" | "coexistence" | "system" | "unknown";
+  actorId: string | null;
+  campaignId: string | null;
+  relatedMessageId: string | null;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -218,6 +226,7 @@ export interface Message {
   location?: Record<string, unknown>;
   contacts?: Array<Record<string, unknown>>;
   failureCode?: string;
+  attribution: MessageAttribution;
 }
 
 export interface Page<T> {
@@ -228,6 +237,81 @@ export interface Page<T> {
 export interface PageQuery {
   limit?: number;
   after?: string;
+}
+
+/** Revision strings are opaque decimal values, never JavaScript numeric counters. */
+export interface MessageChange {
+  id: string;
+  revision: string;
+  messageId: string;
+  type: "message.created" | "message.status_changed";
+  status: Message["status"] | null;
+  occurredAt: string;
+}
+export interface MessageChangesQuery { after?: string; limit?: number }
+export interface MessageChangesPage extends Page<MessageChange> {
+  resumeCursor: string;
+  history: "retained_only";
+}
+export type CampaignStatus = "DRAFT" | "SCHEDULED" | "QUEUED" | "SENDING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCELLED";
+export type CampaignRecipientStatus = "WAITING_QUOTA" | "ADMITTED" | "QUEUED" | "SEND_UNCERTAIN" | "PROVIDER_ACCEPTED" | "SENT" | "DELIVERED" | "READ" | "REPLIED" | "FAILED" | "SKIPPED" | "OPTED_OUT";
+export type CampaignSettlementState = "PENDING" | "SETTLED_SUCCESS" | "SETTLED_FAILURE" | "UNCERTAIN";
+export type CampaignFailureClass = "MARKETING_LIMIT" | "PAIR_RATE_LIMIT" | "SENDER_QUALITY" | "MARKETING_SUPPRESSED" | "WHATSAPP_UNREACHABLE" | "PERMANENT_BOUNCE" | "TEMPLATE_PAUSED" | "SHARED_CONFIGURATION" | "TEMPORARY_UNDELIVERED" | "EXPIRED_UNDELIVERED";
+export type QueryBoolean = boolean | "true" | "false";
+export interface CampaignQuery extends PageQuery { status?: CampaignStatus }
+export interface CampaignRecipientQuery extends PageQuery {
+  status?: CampaignRecipientStatus;
+  settlementState?: CampaignSettlementState;
+  failureClass?: CampaignFailureClass;
+  retargetEligible?: QueryBoolean;
+}
+export interface Campaign {
+  id: string;
+  name: string;
+  status: CampaignStatus;
+  templateId: string;
+  pauseCode: "MANUAL" | "QUOTA" | "MISSED_SCHEDULE" | "QUALITY" | "TEMPLATE" | "SHARED_CONFIGURATION" | "PROVIDER_LIMIT" | "QUEUE_BACKPRESSURE" | "WORKSPACE_BLOCKED" | null;
+  totalRecipients: number;
+  admittedCount: number;
+  quotaWaitingCount: number;
+  providerAcceptedCount: number;
+  sentCount: number;
+  deliveredCount: number;
+  readCount: number;
+  repliedCount: number;
+  failedCount: number;
+  quickReplyCount: number;
+  quickReplyUniqueCount: number;
+  scheduledAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  sendCompletedAt: string | null;
+  outcomeSettledAt: string | null;
+  metricsReconciledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CampaignDetail extends Campaign {
+  failureCohorts: Partial<Record<CampaignFailureClass, number>>;
+  settlementCohorts: Partial<Record<CampaignSettlementState, number>>;
+}
+export interface CampaignRecipient {
+  id: string;
+  contactId: string | null;
+  status: CampaignRecipientStatus;
+  settlementState: CampaignSettlementState;
+  failureClass: CampaignFailureClass | null;
+  normalizedFailureCode: string | null;
+  retargetEligible: boolean;
+  nextEligibleAt: string | null;
+  queuedAt: string;
+  providerAcceptedAt: string | null;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  readAt: string | null;
+  repliedAt: string | null;
+  failedAt: string | null;
+  settledAt: string | null;
 }
 
 export interface ConversationQuery extends PageQuery {
@@ -258,6 +342,10 @@ export interface Conversation {
 export type CustomAttributeValue = string | number | boolean | null;
 
 export interface Contact {
+  /** Present on API releases supporting explicit contact restoration. */
+  archivedAt?: string | null;
+  /** Archive/restore lifecycle revision, not a profile-edit ETag; absent on older APIs. */
+  revision?: number;
   id: string;
   phoneE164: string;
   firstName: string | null;
@@ -293,7 +381,12 @@ export interface ContactUpsert {
   customAttributes?: Record<string, CustomAttributeValue>;
 }
 
-export type ContactPatch = Omit<ContactUpsert, "phoneE164">;
+export interface ContactDetailQuery { includeArchived?: QueryBoolean }
+
+export type ContactPatch = Omit<ContactUpsert, "phoneE164"> & (
+  | { restoreArchived: true; expectedRevision: number }
+  | { restoreArchived?: false; expectedRevision?: number }
+);
 
 export interface Label {
   id: string;
@@ -309,7 +402,7 @@ export type DeveloperApiScope =
   | "workspace:contacts:read" | "workspace:contacts:write"
   | "workspace:segments:read" | "workspace:segments:write" | "workspace:segments:manage"
   | "workspace:labels:manage" | "templates:read" | "webhooks:read" | "webhooks:manage"
-  | "reports:read" | "instance:read";
+  | "reports:read" | "instance:read" | "campaigns:read";
 export interface InstanceCapabilities {
   instance: { id: string; status: "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "UNAUTHORIZED"; inboundHandlerMode: string };
   scopes: DeveloperApiScope[];
@@ -349,10 +442,15 @@ export interface MembershipChange {
   memberCount: number;
 }
 
-export interface TemplateQuery extends PageQuery {
+export type TemplateStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAUSED" | "DISABLED";
+export interface TemplateDetailQuery {
   name?: string;
   language?: string;
+  category?: "AUTHENTICATION" | "MARKETING" | "UTILITY";
+  includeUnavailable?: QueryBoolean;
+  status?: TemplateStatus;
 }
+export interface TemplateQuery extends PageQuery, TemplateDetailQuery {}
 
 export interface Template {
   id: string;
@@ -361,7 +459,10 @@ export interface Template {
   category: string;
   parameterFormat: string;
   components: Array<Record<string, unknown>>;
-  status: "APPROVED";
+  status: TemplateStatus;
+  lastSyncedAt: string | null;
+  providerMissingAt: string | null;
+  unavailableReason: "provider_missing" | "status_pending" | "status_rejected" | "status_paused" | "status_disabled" | null;
   quality: string | null;
   statusSyncedAt: string | null;
   qualitySyncedAt: string | null;
@@ -455,6 +556,7 @@ export interface WebhookSummary {
   revision: number;
   state: WebhookEndpointState;
   selectedEvents: WebhookConfigurationEvent[];
+  observeAllOrigins: boolean;
 }
 
 export interface WebhookDetail extends WebhookSummary {
@@ -468,6 +570,8 @@ export interface WebhookDetail extends WebhookSummary {
 
 export interface WebhookWrite {
   revision: number | null;
+  /** Omission writes false. Preserve explicitly on every save to retain observation. */
+  observeAllOrigins?: boolean;
   callbackUrl?: string;
   selectedEvents: WebhookConfigurationEvent[];
 }
@@ -506,6 +610,12 @@ export class Waaru {
     sendText(input: TextMessage, options?: SendRequestOptions): Promise<AcceptedMessage>;
     sendTemplate(input: TemplateMessage, options?: SendRequestOptions): Promise<AcceptedMessage>;
     get(id: string, options?: RequestOptions): Promise<{ message: Message }>;
+    changes(query?: MessageChangesQuery, options?: RequestOptions): Promise<MessageChangesPage>;
+  };
+  readonly campaigns: {
+    list(query?: CampaignQuery, options?: RequestOptions): Promise<Page<Campaign>>;
+    get(id: string, options?: RequestOptions): Promise<{ campaign: CampaignDetail }>;
+    recipients(id: string, query?: CampaignRecipientQuery, options?: RequestOptions): Promise<Page<CampaignRecipient>>;
   };
   readonly conversations: {
     list(query?: ConversationQuery, options?: RequestOptions): Promise<Page<Conversation>>;
@@ -517,6 +627,7 @@ export class Waaru {
   readonly contacts: {
     list(query?: ContactQuery, options?: RequestOptions): Promise<Page<ContactRead>>;
     get(id: string, options?: RequestOptions): Promise<{ contact: ContactDetail }>;
+    get(id: string, query: ContactDetailQuery, options?: RequestOptions): Promise<{ contact: ContactDetail }>;
     upsert(body: ContactUpsert, options?: RequestOptions): Promise<{ contact: Contact }>;
     update(id: string, body: ContactPatch, options?: RequestOptions): Promise<{ contact: Contact }>;
     applyLabel(id: string, labelId: string, options?: RequestOptions): Promise<LabelChange>;
@@ -542,6 +653,7 @@ export class Waaru {
   readonly templates: {
     list(query?: TemplateQuery, options?: RequestOptions): Promise<Page<Template>>;
     get(id: string, options?: RequestOptions): Promise<{ template: TemplateDetail }>;
+    get(id: string, query: TemplateDetailQuery, options?: RequestOptions): Promise<{ template: TemplateDetail }>;
   };
   readonly reports: {
     activity(options?: RequestOptions): Promise<Activity>;
