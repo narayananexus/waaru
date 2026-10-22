@@ -4,11 +4,11 @@ This document describes `1.0.0-beta.5`: 36 Developer API operations and 15 scope
 
 Beta.4 maps 32 operations and 14 scopes. Beta.5 adds message-change and campaign reads, template lifecycle options, explicit all-origin webhook observation and revision-checked contact restoration. The bundled [OpenAPI](../openapi/developer-openapi.json) describes the reviewed public interface, including the additive restoration schema. Its SHA-256 is `392dde45672f90c1455c026fd1818964a9e11933a186858131d1dfb3c911d3f7`. CI checks the operation map, schema regressions and installed contract bytes. API authority and provider eligibility are checked again at runtime.
 
-The authenticated beta.3 compatibility probe completed on 2026-10-09: 11 successful reads and 21 expected validation or missing-resource rejections covered all 32 operations. No live messages or valid mutations were submitted. This evidence verifies deployed reads and rejection contracts, not successful resource mutations, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility.
+The authenticated beta.5 compatibility probe completed against the owner's staging environment on 2026-10-22: 13 successful reads and 23 expected validation or missing-resource rejections covered all 36 operations. Separate checks verified archived-contact lookup fields and restore-shaped rejection against a confirmed missing resource. No live messages or valid mutations were submitted. This evidence verifies staging reads and rejection contracts, not successful resource mutations, production deployment, media delivery or WhatsApp provider acceptance. Those outcomes still depend on the caller's data, grants and provider eligibility. The beta.3 receipt remains historical 32-operation evidence.
 
 ## Release verification boundary
 
-Beta.5 retains beta.4's raw filter bounds and credential-shaped diagnostic filtering. Beta.3 lacks those protections. The beta.5 publication gate remains held until fresh 36-operation backend acceptance and the required hosted CI checks pass; historical evidence is not relabeled as a current live check.
+Beta.5 retains beta.4's raw filter bounds and credential-shaped diagnostic filtering. Beta.3 lacks those protections. Fresh 36-operation staging acceptance is recorded separately from historical evidence. Publication still requires the release commit's hosted CI checks and protected owner approval; a compatibility receipt alone is not proof of npm availability.
 
 SDK tests and packed ESM/CommonJS/TypeScript consumers verify local request mapping, response handling and package contents in hosted CI. These checks do not prove provider delivery, successful restoration or webhook mutation, or media availability. Fresh authenticated reads and expected rejection checks are required separately for release; valid writes and live sends are not part of that probe.
 
@@ -65,8 +65,8 @@ artifact. `campaigns:read` requires an explicit authorized key edit; no automati
 scope upgrade or sender override exists. All are GET reads and do not schedule,
 send, retarget, change handling mode or claim human ownership. The exact paths,
 filters and projections are pinned in the bundled OpenAPI contract. The beta.3
-authenticated receipt remains historical 32-operation evidence; it does not
-establish deployed support for these additional reads.
+authenticated receipt remains historical 32-operation evidence. The separate
+beta.5 staging probe covers these additional reads or their expected missing-resource rejections; it does not certify production rollout or populated campaign results.
 
 `messages.changes({ after, limit }, options)` accepts opaque cursors up to 2048
 characters and limit 1 through 100. Bootstrap without `after`, then persist
