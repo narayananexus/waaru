@@ -10,7 +10,7 @@
 - Pin the 36-operation/15-scope source contract separately from historical beta.3 live receipts and published beta.4. Require seconds in qualified timestamp filters to match current REST validation.
 - Bundle the current OpenAPI 3.1.1 contract, including archived-contact lookup and restoration constraints; verify its bytes against the pinned fixture and packed consumer.
 - Refresh the README, coverage and contact-sync guidance for beta.5 and distinguish published versions from historical compatibility evidence.
-- Preserve number-bound authority, all beta.4 security fixes, zero runtime dependencies and zero automatic retries. Publication remains gated on fresh backend compatibility and owner approval.
+- Preserve number-bound authority, all beta.4 security fixes, zero runtime dependencies and zero automatic retries. Fresh staging acceptance covered all 36 operations (13 reads, 23 expected rejections), plus archive/restore validation; no live sends or valid mutations. Publication uses protected owner approval after release-commit CI.
 
 ## 1.0.0-beta.4 - 2026-10-16
 

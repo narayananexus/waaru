@@ -50,19 +50,26 @@ test("every manifest mapping resolves to one callable SDK method", () => {
   assert.ok(!manifest.operations.some((item) => item.sdk === "messages.sendTemplate"));
 });
 
-test("pinned schemas cover all send variants and repaired contact response shape", () => {
+test("pinned schemas cover all send variants and repaired contact response shape", async () => {
   assert.equal(openapi.components.schemas.SendMessage.oneOf.length, 9);
   assert.ok(openapi.components.schemas.ContactRead.required.includes("optedOut"));
   const detail = openapi.paths["/v1/developer/contacts/{id}"].get.responses["200"];
   assert.ok(JSON.stringify(detail).includes("#/components/schemas/ContactRead"));
   assert.ok(openapi.components.schemas.ContactRead.properties.labelIds);
   assert.equal(manifest.contactReadStatus, "verified_by_authenticated_release_probe");
-  assert.deepEqual(manifest.releaseBlockers, ["fresh_36_operation_backend_acceptance"]);
-  assert.equal(manifest.releaseVerification.version, "1.0.0-beta.3");
-  assert.equal(manifest.releaseVerification.operations, manifest.publishedBaseline.operationCount);
-  assert.equal(manifest.releaseVerification.reads + manifest.releaseVerification.expectedRejections, 32);
+  assert.deepEqual(manifest.releaseBlockers, []);
+  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
+  assert.equal(manifest.releaseVerification.version, pkg.version);
+  assert.equal(manifest.releaseVerification.operations, manifest.operations.length);
+  assert.equal(manifest.releaseVerification.reads + manifest.releaseVerification.expectedRejections, 36);
   assert.equal(manifest.releaseVerification.liveSends, 0);
   assert.equal(manifest.releaseVerification.validWrites, 0);
+  assert.deepEqual(manifest.releaseVerification.capabilityChecks, [
+    { capability: "contact_archived_lookup", result: "read_ok" },
+    { capability: "contact_restore_validation", result: "expected_rejection", status: 404, code: "contact_not_found" },
+  ]);
+  assert.equal(manifest.historicalReleaseVerification.version, "1.0.0-beta.3");
+  assert.equal(manifest.historicalReleaseVerification.operations, manifest.publishedBaseline.operationCount);
 });
 
 test("fixtures contain no raw API key, environment file or customer credential", () => {

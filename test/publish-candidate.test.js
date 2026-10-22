@@ -15,8 +15,7 @@ test('release candidate remains withheld before backend acceptance and any regis
   const currentPackage = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
   const currentPolicy = JSON.parse(readFileSync(new URL('../.github/release-policy.json', import.meta.url)));
   assert.equal(currentPackage.version, '1.0.0-beta.5');
-  assert.equal(currentPolicy.ready, false);
-  const result = await publishCandidate({ pkg: currentPackage, policy: currentPolicy, fetch: async () => { throw new Error('No registry request while held'); } });
+  const result = await publishCandidate({ pkg: currentPackage, policy: { ...currentPolicy, ready: false }, fetch: async () => { throw new Error('No registry request while held'); } });
   assert.equal(result.publish, false);
   assert.equal(result.reason, 'Version is not marked ready.');
 });

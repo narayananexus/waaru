@@ -1,10 +1,23 @@
 {
   "openapiSha256": "392dde45672f90c1455c026fd1818964a9e11933a186858131d1dfb3c911d3f7",
   "contactReadStatus": "verified_by_authenticated_release_probe",
-  "releaseBlockers": [
-    "fresh_36_operation_backend_acceptance"
-  ],
+  "releaseBlockers": [],
   "releaseVerification": {
+    "checkedAt": "2026-10-22T01:47:19.610Z",
+    "version": "1.0.0-beta.5",
+    "sdkSourceCommit": "1bab041b75d44d21696f1e4b553c218abc45848c",
+    "environment": "staging",
+    "operations": 36,
+    "reads": 13,
+    "expectedRejections": 23,
+    "liveSends": 0,
+    "validWrites": 0,
+    "capabilityChecks": [
+      { "capability": "contact_archived_lookup", "result": "read_ok" },
+      { "capability": "contact_restore_validation", "result": "expected_rejection", "status": 404, "code": "contact_not_found" }
+    ]
+  },
+  "historicalReleaseVerification": {
     "checkedAt": "2026-10-09T11:34:54.414Z",
     "version": "1.0.0-beta.3",
     "operations": 32,
@@ -313,7 +326,7 @@
     "repository": "tanaydpatel/waaru-monorepo",
     "operationCount": 36,
     "scopeCount": 15,
-    "acceptance": "source_and_synthetic_only",
+    "acceptance": "authenticated_reads_and_expected_rejections",
     "runtimeCommit": "26503949ff1da00a1bee8a1563fd0bcd4e102cd6",
     "documentationCommit": "26503949ff1da00a1bee8a1563fd0bcd4e102cd6"
   }
